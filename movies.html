@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+<link rel="stylesheet" href="style.css">
+<title>Movie List</title>
+</head>
+
+<body>
+
+<header class="nav">
+  <h1 class="logo">MovieClub</h1>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="movies.html">Movie List</a>
+    <a href="suggest.html">Suggest</a>
+    <a href="leaderboard.html">Leaderboard</a>
+  </nav>
+</header>
+
+<section class="row">
+  <h2>Movie List (Live Google Sheets Editor)</h2>
+  <p style="opacity:0.6">Click a cell to edit → it saves automatically</p>
+
+  <div id="table-container">Loading...</div>
+</section>
+
+<script>
+
+const API_URL =
+"https://script.google.com/macros/s/AKfycbxHQxuQV-kCOEKEJd4JdeOcgHRUfJfdwGC5fSzV0OcUHk7fbfnzOjHkjzFuNUGsQ1Bc/exec";
+
+let tableData = [];
+let headers = [];
+
+// ---------------- LOAD SHEET ----------------
+fetch(API_URL)
+.then(res => res.json())
+.then(data => {
+
+    headers = data[0];
+    tableData = data.slice(1);
+
+    renderTable();
+});
+
+
+// ---------------- RENDER TABLE ----------------
+function renderTable() {
+
+    let html = `<table>`;
+
+    // headers
+    html += `<tr>`;
+    headers.forEach(h => html += `<th>${h}</th>`);
+    html += `</tr>`;
+
+    // rows
+    tableData.forEach((row, i) => {
+
+        html += `<tr>`;
+
+        headers.forEach((_, j) => {
+
+            const value = row[j] ?? "";
+
+            html += `
+                <td contenteditable="true"
+                    onblur="saveCell(${i}, ${j}, this.innerText)">
+                    ${value}
+                </td>`;
+        });
+
+        html += `</tr>`;
+    });
+
+    html += `</table>`;
+
+    document.getElementById("table-container").innerHTML = html;
+}
+
+
+// ---------------- SAVE TO GOOGLE SHEETS ----------------
+function saveCell(row, col, value) {
+
+    fetch(API_URL, {
+        method: "POST",
+        headers: {
+            "Content-Type": "text/plain"
+        },
+        body: JSON.stringify({
+            row: row + 1,   // +1 because sheet starts at row 1
+            col: col + 1,   // +1 because sheet starts at col 1
+            value: value
+        })
+    });
+
+}
+
+</script>
+
+</body>
+</html>
