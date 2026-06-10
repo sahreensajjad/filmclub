@@ -17,7 +17,6 @@
   </nav>
 </header>
 
-<!-- HERO -->
 <section class="hero">
   <div class="hero-content">
     <h2>Now Showing</h2>
@@ -25,25 +24,29 @@
   </div>
 </section>
 
-<!-- THEMES -->
 <section class="row">
   <h2>This Month’s Themes</h2>
   <div class="grid" id="themes"></div>
 </section>
 
-<!-- TOP RATED -->
+<section class="row">
+  <h2>Movie Posters</h2>
+  <div class="grid" id="movies"></div>
+</section>
+
 <section class="row">
   <h2>Top Rated Films</h2>
   <div class="grid" id="top"></div>
 </section>
 
-<!-- HALL OF SHAME PREVIEW -->
 <section class="row">
   <h2>Hall of Shame 😈</h2>
   <div class="grid" id="shame"></div>
 </section>
 
 <script>
+
+const API_KEY = "2e340492";
 
 const CURRENT =
 "https://docs.google.com/spreadsheets/d/13lWytzXH2oiIezzaSU_EmaNF6QqLWm3ym-qIdpdYGeY/export?format=csv&gid=0";
@@ -55,10 +58,34 @@ const SCORE =
 "https://docs.google.com/spreadsheets/d/13lWytzXH2oiIezzaSU_EmaNF6QqLWm3ym-qIdpdYGeY/export?format=csv&gid=1069437142";
 
 
-// ---------------- CURRENT + THEMES ----------------
+// ---------------- OMDb loader ----------------
+function loadMovie(title, containerId) {
+
+    fetch(`https://www.omdbapi.com/?t=${encodeURIComponent(title)}&apikey=${API_KEY}`)
+    .then(r => r.json())
+    .then(data => {
+
+        if (data.Response === "False") return;
+
+        const card = document.createElement("div");
+        card.className = "card";
+
+        card.innerHTML = `
+            <img src="${data.Poster}" />
+            <strong>${data.Title}</strong><br>
+            ⭐ ${data.imdbRating}
+        `;
+
+        document.getElementById(containerId).appendChild(card);
+    });
+}
+
+
+// ---------------- CURRENT ----------------
 fetch(CURRENT)
 .then(r => r.text())
 .then(t => {
+
     const rows = t.trim().split("\n");
 
     const latest = rows[1].split(",");
@@ -80,16 +107,33 @@ fetch(CURRENT)
 });
 
 
+// ---------------- MOVIES (POSTERS) ----------------
+fetch(MOVIES)
+.then(r => r.text())
+.then(t => {
+
+    const rows = t.trim().split("\n").slice(1);
+
+    rows.forEach(r => {
+        const c = r.split(",");
+        const title = c[0];
+        loadMovie(title, "movies");
+    });
+});
+
+
 // ---------------- TOP RATED ----------------
 fetch(SCORE)
 .then(r => r.text())
 .then(t => {
+
     const rows = t.trim().split("\n").slice(1);
 
     let html = "";
 
     rows.forEach(r => {
         const c = r.split(",");
+
         html += `
         <div class="card">
             <strong>${c[0]}</strong><br>
@@ -101,40 +145,38 @@ fetch(SCORE)
 });
 
 
-// ---------------- HALL OF SHAME PREVIEW ----------------
+// ---------------- HALL OF SHAME ----------------
 fetch(SCORE)
 .then(r => r.text())
 .then(t => {
 
     const rows = t.trim().split("\n").slice(1);
 
-    const userStats = {};
+    const users = {};
 
     rows.forEach(r => {
         const c = r.split(",");
-        const user = c[1]?.trim();
+        const u = c[1]?.trim();
         const avg = parseFloat(c[c.length - 1]);
 
-        if (!user || isNaN(avg)) return;
+        if (!u || isNaN(avg)) return;
 
-        if (!userStats[user]) {
-            userStats[user] = { total: 0, count: 0 };
-        }
+        if (!users[u]) users[u] = { total:0, count:0 };
 
-        userStats[user].total += avg;
-        userStats[user].count += 1;
+        users[u].total += avg;
+        users[u].count += 1;
     });
 
-    const leaderboard = Object.keys(userStats).map(u => ({
+    const arr = Object.keys(users).map(u => ({
         name: u,
-        avg: userStats[u].total / userStats[u].count
+        avg: users[u].total / users[u].count
     }));
 
-    leaderboard.sort((a, b) => a.avg - b.avg);
+    arr.sort((a,b) => a.avg - b.avg);
 
     let html = "";
 
-    leaderboard.slice(0, 5).forEach(u => {
+    arr.slice(0,5).forEach(u => {
         html += `
         <div class="card">
             <strong>${u.name}</strong><br>
