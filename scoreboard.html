@@ -19,100 +19,89 @@
 
 <section class="row">
 
-  <div class="movie-header">
-    <h2>Movie Scoreboard</h2>
-
-    <button onclick="addRow()">➕ Add Row</button>
-    <button onclick="reload()">Refresh</button>
-  </div>
-
-  <div id="table-container">Loading...</div>
+  <h2>🎬 Movie Scoreboard</h2>
+  <div id="board">Loading...</div>
 
 </section>
 
 <script>
 
-const API_URL =
-"https://script.google.com/macros/s/AKfycbxHQxuQV-kCOEKEJd4JdeOcgHRUfJfdwGC5fSzV0OcUHk7fbfnzOjHkjzFuNUGsQ1Bc/exec";
-
-const SHEET_NAME = "Movie Scoreboard";
+const API_URL = "https://script.google.com/macros/s/AKfycbxHQxuQV-kCOEKEJd4JdeOcgHRUfJfdwGC5fSzV0OcUHk7fbfnzOjHkjzFuNUGsQ1Bc/exec";
+const SHEET = "Movie Scoreboard";
 
 let headers = [];
-let tableData = [];
+let rows = [];
 
 load();
 
 function load() {
+  fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET))
+    .then(r => r.json())
+    .then(data => {
 
-  fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET_NAME))
-  .then(r => r.json())
-  .then(data => {
+      headers = data[0];
+      rows = data.slice(1);
 
-    headers = data[0];
-    tableData = data.slice(1);
-
-    render();
-  });
+      render();
+    });
 }
 
 function render() {
 
-  let html = "<table>";
+  const movieCol = 0;
+  const posterCol = -1; // optional if you don't have posters yet
 
-  html += "<tr>";
-  headers.forEach(h => html += `<th>${h}</th>`);
-  html += "</tr>";
+  let html = "<div class='grid'>";
 
-  tableData.forEach((row, i) => {
+  rows.forEach((row, i) => {
 
-    html += "<tr>";
+    const movie = row[0];
+    const suggestedBy = row[1];
+    const average = row[row.length - 1];
 
-    headers.forEach((_, j) => {
+    if (!movie) return;
 
-      const val = row[j] ?? "";
+    html += `
+      <div class="card" style="min-height: 220px">
 
-      html += `
-        <td contenteditable="true"
-            onblur="save(${i},${j},this.innerText)">
-            ${val}
-        </td>`;
-    });
+        <img src="https://source.unsplash.com/300x400/?movie,${encodeURIComponent(movie)}"
+             alt="${movie}">
 
-    html += "</tr>";
+        <strong contenteditable="true"
+          onblur="save(${i},0,this.innerText)">${movie}</strong>
+
+        <small>Suggested by:
+          <span contenteditable="true"
+            onblur="save(${i},1,this.innerText)">${suggestedBy || ""}</span>
+        </small>
+
+        <small>⭐ Average: ${average || "N/A"}</small>
+
+      </div>
+    `;
   });
 
-  html += "</table>";
+  html += "</div>";
 
-  document.getElementById("table-container").innerHTML = html;
+  document.getElementById("board").innerHTML = html;
 }
 
 function save(row, col, value) {
 
   fetch(API_URL, {
     method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
     body: JSON.stringify({
-      sheet: SHEET_NAME,
+      sheet: SHEET,
       action: "update",
-      row: row + 1,
+      row: row + 2,
       col: col + 1,
       value: value
     })
   });
-}
 
-function addRow() {
-
-  fetch(API_URL, {
-    method: "POST",
-    body: JSON.stringify({
-      sheet: SHEET_NAME,
-      action: "addRow"
-    })
-  }).then(() => load());
-}
-
-function reload() {
-  load();
 }
 
 </script>
