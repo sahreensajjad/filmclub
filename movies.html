@@ -22,7 +22,7 @@
   <div class="movie-header">
     <h2>Movie List Editor</h2>
 
-    <button onclick="addRow()">➕ Add Row</button>
+    <button onclick="addRowToSheet()">➕ Add Row</button>
     <button onclick="downloadCSV()">Download CSV</button>
   </div>
 
@@ -38,7 +38,7 @@ const API_URL =
 let tableData = [];
 let headers = [];
 
-// ---------------- LOAD DATA ----------------
+// ---------------- LOAD ----------------
 fetch(API_URL)
 .then(res => res.json())
 .then(data => {
@@ -50,7 +50,7 @@ fetch(API_URL)
 });
 
 
-// ---------------- RENDER TABLE ----------------
+// ---------------- RENDER ----------------
 function renderTable() {
 
     let html = `<table>`;
@@ -85,15 +85,13 @@ function renderTable() {
 }
 
 
-// ---------------- SAVE TO GOOGLE SHEETS ----------------
+// ---------------- SAVE CELL ----------------
 function saveCell(row, col, value) {
 
     fetch(API_URL, {
         method: "POST",
-        headers: {
-            "Content-Type": "text/plain"
-        },
         body: JSON.stringify({
+            action: "update",
             row: row + 1,
             col: col + 1,
             value: value
@@ -103,18 +101,23 @@ function saveCell(row, col, value) {
 }
 
 
-// ---------------- ADD ROW ----------------
-function addRow() {
+// ---------------- ADD ROW (REAL SHEET) ----------------
+function addRowToSheet() {
 
-    const newRow = headers.map(() => "");
+    fetch(API_URL, {
+        method: "POST",
+        body: JSON.stringify({
+            action: "addRow"
+        })
+    })
+    .then(() => {
+        location.reload();
+    });
 
-    tableData.push(newRow);
-
-    renderTable();
 }
 
 
-// ---------------- DOWNLOAD CSV ----------------
+// ---------------- CSV DOWNLOAD ----------------
 function downloadCSV() {
 
     let csv = headers.join(",") + "\n";
