@@ -35,11 +35,14 @@
 const API_URL =
 "https://script.google.com/macros/s/AKfycbxHQxuQV-kCOEKEJd4JdeOcgHRUfJfdwGC5fSzV0OcUHk7fbfnzOjHkjzFuNUGsQ1Bc/exec";
 
+const SHEET_NAME = "Movie List";
+
 let tableData = [];
 let headers = [];
 
+
 // ---------------- LOAD ----------------
-fetch(API_URL + "?sheet=Movie%20List")
+fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET_NAME))
 .then(res => res.json())
 .then(data => {
 
@@ -91,6 +94,7 @@ function saveCell(row, col, value) {
     fetch(API_URL, {
         method: "POST",
         body: JSON.stringify({
+            sheet: SHEET_NAME,
             action: "update",
             row: row + 1,
             col: col + 1,
@@ -101,12 +105,13 @@ function saveCell(row, col, value) {
 }
 
 
-// ---------------- ADD ROW (REAL SHEET) ----------------
+// ---------------- ADD ROW ----------------
 function addRowToSheet() {
 
     fetch(API_URL, {
         method: "POST",
         body: JSON.stringify({
+            sheet: SHEET_NAME,
             action: "addRow"
         })
     })
@@ -133,6 +138,8 @@ function downloadCSV() {
     a.href = url;
     a.download = "movie-list.csv";
     a.click();
+
+    URL.revokeObjectURL(url);
 }
 
 </script>
