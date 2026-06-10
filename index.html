@@ -48,38 +48,36 @@
 const API_URL =
 "https://script.google.com/macros/s/AKfycbyB0ggaTr5iGYZhTZ59YcFXuu6WZTfyNjfd7BE69-WD_zP3qX3MIvLq6MVhpnYV5GtX/exec";
 
+const SHEET_MOVIE_LIST = "Movie List";
+const SHEET_SCOREBOARD = "Movie Scoreboard";
+const SHEET_CURRENT = "Current Selections";
+
 
 /* ---------------- NOW SHOWING ---------------- */
 
-fetch(API_URL + "?sheet=Current%20Selections")
+fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET_CURRENT))
 .then(r => r.json())
 .then(data => {
 
-    const rows = data.slice(1);
-
-    if (!rows.length) return;
+    const rows = data.rows;
 
     const last = rows[rows.length - 1];
 
     const colC = last[2];
     const colD = last[3];
 
-    let text = "";
-
-    if (colC && colD) text = colC + " and " + colD;
-    else text = colC || colD || "";
-
-    document.getElementById("current").innerText = text;
+    document.getElementById("current").innerText =
+        colC && colD ? colC + " and " + colD : (colC || colD || "");
 });
 
 
 /* ---------------- THEMES ---------------- */
 
-fetch(API_URL + "?sheet=Movie%20List")
+fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET_MOVIE_LIST))
 .then(r => r.json())
 .then(data => {
 
-    const rows = data.slice(1);
+    const rows = data.rows;
 
     let html = "";
 
@@ -92,7 +90,7 @@ fetch(API_URL + "?sheet=Movie%20List")
 
         html += `
         <div class="card">
-          <strong>${theme || "Theme"}</strong>
+          <strong>${theme || ""}</strong>
           <small>${movie || ""}</small>
         </div>`;
     });
@@ -103,11 +101,11 @@ fetch(API_URL + "?sheet=Movie%20List")
 
 /* ---------------- TOP RATED ---------------- */
 
-fetch(API_URL + "?sheet=Movie%20Scoreboard")
+fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET_SCOREBOARD))
 .then(r => r.json())
 .then(data => {
 
-    const rows = data.slice(1);
+    const rows = data.rows;
 
     rows.sort((a, b) =>
         parseFloat(b[b.length - 1] || 0) - parseFloat(a[a.length - 1] || 0)
@@ -135,11 +133,11 @@ fetch(API_URL + "?sheet=Movie%20Scoreboard")
 
 /* ---------------- HALL OF SHAME ---------------- */
 
-fetch(API_URL + "?sheet=Movie%20Scoreboard")
+fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET_SCOREBOARD))
 .then(r => r.json())
 .then(data => {
 
-    const rows = data.slice(1);
+    const rows = data.rows;
 
     rows.sort((a, b) =>
         parseFloat(a[a.length - 1] || 0) - parseFloat(b[b.length - 1] || 0)
