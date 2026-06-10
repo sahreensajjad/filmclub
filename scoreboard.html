@@ -22,7 +22,8 @@
   <div class="movie-header">
     <h2>Movie Scoreboard</h2>
 
-    <button onclick="addRowToSheet()">➕ Add Row</button>
+    <button onclick="addRow()">➕ Add Row</button>
+    <button onclick="reload()">Refresh</button>
   </div>
 
   <div id="table-container">Loading...</div>
@@ -36,87 +37,82 @@ const API_URL =
 
 const SHEET_NAME = "Movie Scoreboard";
 
-let tableData = [];
 let headers = [];
+let tableData = [];
 
-loadData();
+load();
 
-function loadData() {
+function load() {
 
-    fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET_NAME))
-    .then(res => res.json())
-    .then(data => {
+  fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET_NAME))
+  .then(r => r.json())
+  .then(data => {
 
-        headers = data[0];
-        tableData = data.slice(1);
+    headers = data[0];
+    tableData = data.slice(1);
 
-        renderTable();
-    });
-
+    render();
+  });
 }
 
-function renderTable() {
+function render() {
 
-    let html = "<table>";
+  let html = "<table>";
+
+  html += "<tr>";
+  headers.forEach(h => html += `<th>${h}</th>`);
+  html += "</tr>";
+
+  tableData.forEach((row, i) => {
 
     html += "<tr>";
 
-    headers.forEach(h => {
-        html += `<th>${h}</th>`;
+    headers.forEach((_, j) => {
+
+      const val = row[j] ?? "";
+
+      html += `
+        <td contenteditable="true"
+            onblur="save(${i},${j},this.innerText)">
+            ${val}
+        </td>`;
     });
 
     html += "</tr>";
+  });
 
-    tableData.forEach((row, i) => {
+  html += "</table>";
 
-        html += "<tr>";
-
-        headers.forEach((_, j) => {
-
-            const value = row[j] ?? "";
-
-            html += `
-            <td
-                contenteditable="true"
-                onblur="saveCell(${i},${j},this.innerText)">
-                ${value}
-            </td>`;
-        });
-
-        html += "</tr>";
-    });
-
-    html += "</table>";
-
-    document.getElementById("table-container").innerHTML = html;
+  document.getElementById("table-container").innerHTML = html;
 }
 
-function saveCell(row, col, value) {
+function save(row, col, value) {
 
-    fetch(API_URL, {
-        method: "POST",
-        body: JSON.stringify({
-            sheet: SHEET_NAME,
-            action: "update",
-            row: row + 1,
-            col: col + 1,
-            value: value
-        })
-    });
-
-}
-
-function addRowToSheet() {
-
-    fetch(API_URL, {
-        method: "POST",
-        body: JSON.stringify({
-            sheet: SHEET_NAME,
-            action: "addRow"
-        })
+  fetch(API_URL, {
+    method: "POST",
+    body: JSON.stringify({
+      sheet: SHEET_NAME,
+      action: "update",
+      row: row + 1,
+      col: col + 1,
+      value: value
     })
-    .then(() => loadData());
+  });
+}
 
+function addRow() {
+
+  fetch(API_URL, {
+    method: "POST",
+    body: JSON.stringify({
+      sheet: SHEET_NAME,
+      action: "addRow"
+    })
+  }).then(() => load());
+}
+
+function reload() {
+  load();
 }
 
 </script>
