@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+<link rel="stylesheet" href="style.css">
+<title>Scoreboard</title>
+</head>
+
+<body>
+
+<header class="nav">
+  <h1 class="logo">MovieClub</h1>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="suggest.html">Suggest</a>
+    <a href="leaderboard.html">Leaderboard</a>
+  </nav>
+</header>
+
+<section class="row">
+  <h1>🏆 Movie Scoreboard</h1>
+  <div class="grid" id="board"></div>
+</section>
+
+<script>
+
+const SCORE =
+"https://docs.google.com/spreadsheets/d/13lWytzXH2oiIezzaSU_EmaNF6QqLWm3ym-qIdpdYGeY/export?format=csv&gid=1069437142";
+
+fetch(SCORE)
+.then(r => r.text())
+.then(t => {
+    const rows = t.trim().split("\n").slice(1);
+
+    let html = "";
+
+    rows.forEach(r => {
+        const c = r.split(",");
+
+        const movie = c[0] || "Unknown";
+        const suggestedBy = c[1] || "";
+        const avg = c[2] || "N/A";
+
+        html += `
+        <div class="card">
+            <strong>${movie}</strong><br>
+            <small>by ${suggestedBy}</small><br>
+            ⭐ ${avg}
+        </div>`;
+    });
+
+    document.getElementById("board").innerHTML = html;
+});
+
+</script>
+
+</body>
+</html>
