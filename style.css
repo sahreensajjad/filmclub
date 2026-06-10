@@ -127,7 +127,7 @@ body {
     font-size: 18px;
 }
 
-/* HALL OF SHAME SPECIAL LOOK */
+/* HALL OF SHAME */
 #shame .card {
     background: #2a0000;
 }
@@ -136,11 +136,61 @@ body {
     background: #ff2a2a;
 }
 
-/* TOP RATED DIFFERENT LOOK */
+/* TOP RATED */
 #top .card {
     background: #1a1a1a;
 }
 
 #top .card:hover {
     background: #e50914;
+}
+
+/* ===================================================== */
+/* 🆕 MOVIE LIST (GOOGLE SHEETS EDITOR TABLE STYLE)      */
+/* ===================================================== */
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    color: white;
+    font-size: 14px;
+}
+
+th, td {
+    border: 1px solid #2a2a2a;
+    padding: 10px;
+    text-align: left;
+    vertical-align: top;
+}
+
+th {
+    background: #e50914;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+}
+
+td {
+    background: #1a1a1a;
+    outline: none;
+    min-width: 120px;
+}
+
+/* editing cell focus */
+td:focus {
+    outline: 2px solid #e50914;
+    background: #222;
+}
+
+/* nicer hover for table rows */
+tr:hover td {
+    background: #2a2a2a;
+}
+
+/* optional: make tables scroll horizontally on small screens */
+table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
 }
