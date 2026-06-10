@@ -39,7 +39,7 @@ let tableData = [];
 let headers = [];
 
 // ---------------- LOAD ----------------
-fetch(API_URL)
+fetch(API_URL + "?sheet=Movie%20List")
 .then(res => res.json())
 .then(data => {
 
