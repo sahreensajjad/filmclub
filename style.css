@@ -61,8 +61,8 @@ body {
 }
 
 .row h2 {
-    font-size: 18px;
     margin-bottom: 12px;
+    font-size: 18px;
 }
 
 /* GRID */
@@ -72,20 +72,26 @@ body {
     gap: 12px;
 }
 
-/* CARDS */
+/* CARD */
 .card {
     background: #fff;
     border: 1px solid #ddd;
     border-radius: 6px;
-    padding: 12px;
-    min-width: 180px;
-    max-width: 220px;
-    transition: 0.15s ease;
+    padding: 10px;
+    width: 180px;
+    transition: 0.2s;
 }
 
 .card:hover {
-    transform: translateY(-2px);
+    transform: translateY(-3px);
     box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+/* POSTERS */
+.card img {
+    width: 100%;
+    border-radius: 6px;
+    margin-bottom: 6px;
 }
 
 /* TEXT */
