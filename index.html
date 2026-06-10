@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html>
+<head>
+<link rel="stylesheet" href="style.css">
+<title>MovieClub</title>
+</head>
+
+<body>
+
+<header class="nav">
+  <h1 class="logo">MovieClub</h1>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="suggest.html">Suggest</a>
+    <a href="leaderboard.html">Leaderboard</a>
+  </nav>
+</header>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-content">
+    <h2>Now Showing</h2>
+    <h1 id="current">Loading...</h1>
+  </div>
+</section>
+
+<!-- THEMES -->
+<section class="row">
+  <h2>This Month’s Themes</h2>
+  <div class="grid" id="themes"></div>
+</section>
+
+<!-- TOP RATED -->
+<section class="row">
+  <h2>Top Rated Films</h2>
+  <div class="grid" id="top"></div>
+</section>
+
+<script>
+
+const CURRENT =
+"https://docs.google.com/spreadsheets/d/13lWytzXH2oiIezzaSU_EmaNF6QqLWm3ym-qIdpdYGeY/export?format=csv&gid=0";
+
+const MOVIES =
+"https://docs.google.com/spreadsheets/d/13lWytzXH2oiIezzaSU_EmaNF6QqLWm3ym-qIdpdYGeY/export?format=csv&gid=1021935769";
+
+const SCORE =
+"https://docs.google.com/spreadsheets/d/13lWytzXH2oiIezzaSU_EmaNF6QqLWm3ym-qIdpdYGeY/export?format=csv&gid=1069437142";
+
+
+// -------------------- CURRENT SELECTIONS --------------------
+fetch(CURRENT)
+.then(r => r.text())
+.then(t => {
+    const rows = t.trim().split("\n");
+
+    const latest = rows[1].split(",");
+
+    document.getElementById("current").innerText =
+        latest[2] + " vs " + latest[3];
+
+    let html = "";
+
+    rows.slice(1).forEach(r => {
+        const c = r.split(",");
+        html += `
+        <div class="card">
+            <strong>${c[1]}</strong><br>
+            <small>${c[0]}</small>
+        </div>`;
+    });
+
+    document.getElementById("themes").innerHTML = html;
+});
+
+
+// -------------------- TOP RATED --------------------
+fetch(SCORE)
+.then(r => r.text())
+.then(t => {
+    const rows = t.trim().split("\n").slice(1);
+
+    let html = "";
+
+    rows.forEach(r => {
+        const c = r.split(",");
+
+        html += `
+        <div class="card">
+            <strong>${c[0]}</strong><br>
+            ⭐ ${c[2]}
+        </div>`;
+    });
+
+    document.getElementById("top").innerHTML = html;
+});
+
+
+// -------------------- MOVIE LIST (optional future use) --------------------
+// You currently aren't using it, but it's ready
+fetch(MOVIES)
+.then(r => r.text())
+.then(t => {
+    console.log("Movies loaded:", t);
+});
+
+</script>
+
+</body>
+</html>
