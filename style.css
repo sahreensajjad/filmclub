@@ -188,9 +188,71 @@ tr:hover td {
     background: #2a2a2a;
 }
 
+/* ===== MOVIE LIST HEADER ===== */
+.movie-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.movie-header button {
+    background: #e50914;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    margin-left: 10px;
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 13px;
+}
+
+.movie-header button:hover {
+    background: #ff2a2a;
+}
+
+/* ===== TABLE READABILITY FIX ===== */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+    color: white;
+    font-size: 14px;
+}
+
+th {
+    background: #e50914;
+    padding: 12px;
+    text-align: left;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+}
+
+td {
+    background: #1a1a1a;
+    padding: 10px;
+    min-width: 140px;
+    max-width: 260px;
+    overflow-wrap: break-word;
+}
+
+tr:nth-child(even) td {
+    background: #202020;
+}
+
+tr:hover td {
+    background: #2a2a2a;
+}
+
+td:focus {
+    outline: 2px solid #e50914;
+    background: #2c2c2c;
+}
 /* optional: make tables scroll horizontally on small screens */
 table {
     display: block;
     overflow-x: auto;
     white-space: nowrap;
 }
+
