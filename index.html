@@ -27,11 +27,11 @@
 
 <!-- THEMES -->
 <section class="row">
-  <h2>This Month’s Themes</h2>
+  <h2>Monthly Themes</h2>
   <div class="grid" id="themes"></div>
 </section>
 
-<!-- TOP RATED (POSTERS NOW HERE) -->
+<!-- TOP RATED -->
 <section class="row">
   <h2>Top Rated Films</h2>
   <div class="grid" id="top"></div>
@@ -93,25 +93,65 @@ fetch(CURRENT)
 
     document.getElementById("current").innerText = text;
 
-    // THEMES
+});
+
+
+// ---------------- MONTHLY THEMES + POSTERS ----------------
+fetch(CURRENT)
+.then(r => r.text())
+.then(t => {
+
+    const rows = t.trim().split("\n").slice(1);
+
     let html = "";
 
-    rows.slice(1).forEach(r => {
+    rows.forEach((r, index) => {
 
         const c = parseCSVLine(r);
 
+        const theme = c[1];
+        const movies = [c[2], c[3]].filter(Boolean);
+
         html += `
-        <div class="card">
-            <strong>${c[1]}</strong><br>
-            <small>${c[0]}</small>
+        <div class="theme-block">
+            <h3>${theme}</h3>
+            <div class="grid" id="theme-${index}"></div>
         </div>`;
+
+        setTimeout(() => {
+
+            movies.forEach(title => {
+
+                fetch(`https://www.omdbapi.com/?t=${encodeURIComponent(title)}&apikey=${API_KEY}`)
+                .then(res => res.json())
+                .then(data => {
+
+                    if (data.Response !== "True") return;
+
+                    const poster = (data.Poster && data.Poster !== "N/A")
+                        ? data.Poster
+                        : "https://via.placeholder.com/300x450?text=No+Poster";
+
+                    const card = document.createElement("div");
+                    card.className = "card";
+
+                    card.innerHTML = `
+                        <img src="${poster}">
+                        <strong>${data.Title}</strong>
+                    `;
+
+                    document.getElementById(`theme-${index}`).appendChild(card);
+                });
+            });
+
+        }, 0);
     });
 
     document.getElementById("themes").innerHTML = html;
 });
 
 
-// ---------------- TOP RATED (POSTERS + SORTED) ----------------
+// ---------------- TOP RATED (FIXED ORDER + POSTERS) ----------------
 fetch(SCORE)
 .then(r => r.text())
 .then(t => {
@@ -137,30 +177,31 @@ fetch(SCORE)
     const container = document.getElementById("top");
     container.innerHTML = "";
 
-    films.forEach(f => {
+    Promise.all(
+        films.map(f =>
+            fetch(`https://www.omdbapi.com/?t=${encodeURIComponent(f.title)}&apikey=${API_KEY}`)
+            .then(r => r.json())
+            .then(data => {
 
-        fetch(`https://www.omdbapi.com/?t=${encodeURIComponent(f.title)}&apikey=${API_KEY}`)
-        .then(r => r.json())
-        .then(data => {
+                if (data.Response !== "True") return null;
 
-            if (data.Response !== "True") return;
+                const poster = (data.Poster && data.Poster !== "N/A")
+                    ? data.Poster
+                    : "https://via.placeholder.com/300x450?text=No+Poster";
 
-            const poster = (data.Poster && data.Poster !== "N/A")
-                ? data.Poster
-                : "https://via.placeholder.com/300x450?text=No+Poster";
-
-            const card = document.createElement("div");
-            card.className = "card";
-
-            card.innerHTML = `
-                <img src="${poster}">
-                <strong>${data.Title}</strong>
-                <small>⭐ ${f.avg.toFixed(2)}</small>
-            `;
-
-            container.appendChild(card);
-        });
+                return `
+                    <div class="card">
+                        <img src="${poster}">
+                        <strong>${data.Title}</strong>
+                        <small>⭐ ${f.avg.toFixed(2)}</small>
+                    </div>
+                `;
+            })
+        )
+    ).then(cards => {
+        container.innerHTML = cards.filter(Boolean).join("");
     });
+
 });
 
 
