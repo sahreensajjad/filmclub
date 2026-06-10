@@ -71,10 +71,10 @@ function loadMovie(title, containerId) {
         card.className = "card";
 
         card.innerHTML = `
-            <img src="${data.Poster}" />
-            <strong>${data.Title}</strong><br>
-            ⭐ ${data.imdbRating}
-        `;
+    <img src="${poster}">
+    <strong>${data.Title}</strong>
+    <small class="card-rating">⭐ ${data.imdbRating}</small>
+`;
 
         document.getElementById(containerId).appendChild(card);
     });
