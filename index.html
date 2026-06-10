@@ -31,13 +31,7 @@
   <div class="grid" id="themes"></div>
 </section>
 
-<!-- MOVIES -->
-<section class="row">
-  <h2>Movie Posters</h2>
-  <div class="grid" id="movies"></div>
-</section>
-
-<!-- TOP RATED -->
+<!-- TOP RATED (POSTERS NOW HERE) -->
 <section class="row">
   <h2>Top Rated Films</h2>
   <div class="grid" id="top"></div>
@@ -56,60 +50,13 @@ const API_KEY = "2e340492";
 const CURRENT =
 "https://docs.google.com/spreadsheets/d/13lWytzXH2oiIezzaSU_EmaNF6QqLWm3ym-qIdpdYGeY/export?format=csv&gid=0";
 
-const MOVIES =
-"https://docs.google.com/spreadsheets/d/13lWytzXH2oiIezzaSU_EmaNF6QqLWm3ym-qIdpdYGeY/export?format=csv&gid=1021935769";
-
 const SCORE =
 "https://docs.google.com/spreadsheets/d/13lWytzXH2oiIezzaSU_EmaNF6QqLWm3ym-qIdpdYGeY/export?format=csv&gid=1069437142";
 
 
 // ---------------- CSV PARSER ----------------
 function parseCSVLine(line) {
-    const result = [];
-    let current = "";
-    let inQuotes = false;
-
-    for (let char of line) {
-
-        if (char === '"') {
-            inQuotes = !inQuotes;
-        } else if (char === "," && !inQuotes) {
-            result.push(current);
-            current = "";
-        } else {
-            current += char;
-        }
-    }
-
-    result.push(current);
-    return result.map(x => x.trim());
-}
-
-
-// ---------------- OMDb LOADER ----------------
-function loadMovie(title, containerId) {
-
-    fetch(`https://www.omdbapi.com/?t=${encodeURIComponent(title)}&apikey=${API_KEY}`)
-    .then(r => r.json())
-    .then(data => {
-
-        if (data.Response !== "True") return;
-
-        const poster = (data.Poster && data.Poster !== "N/A")
-            ? data.Poster
-            : "https://via.placeholder.com/300x450?text=No+Poster";
-
-        const card = document.createElement("div");
-        card.className = "card";
-
-        card.innerHTML = `
-            <img src="${poster}">
-            <strong>${data.Title}</strong>
-            <small>⭐ ${data.imdbRating}</small>
-        `;
-
-        document.getElementById(containerId).appendChild(card);
-    });
+    return line.split(",").map(x => x.trim().replace(/^"|"$/g, ""));
 }
 
 
@@ -120,29 +67,29 @@ fetch(CURRENT)
 
     const rows = t.trim().split("\n");
 
-    let latestRow = null;
+    let latest = null;
 
     for (let i = rows.length - 1; i >= 1; i--) {
 
         const c = parseCSVLine(rows[i]);
 
-        const colC = c[2]?.trim();
-        const colD = c[3]?.trim();
+        const colC = c[2];
+        const colD = c[3];
 
-        if (!colC && !colD) continue;
-
-        latestRow = { colC, colD };
-        break;
+        if (colC || colD) {
+            latest = { colC, colD };
+            break;
+        }
     }
 
-    if (!latestRow) {
+    if (!latest) {
         document.getElementById("current").innerText = "No current movie";
         return;
     }
 
-    let text = latestRow.colC && latestRow.colD
-        ? `${latestRow.colC} and ${latestRow.colD}`
-        : (latestRow.colC || latestRow.colD);
+    const text = latest.colC && latest.colD
+        ? `${latest.colC} and ${latest.colD}`
+        : (latest.colC || latest.colD);
 
     document.getElementById("current").innerText = text;
 
@@ -164,21 +111,7 @@ fetch(CURRENT)
 });
 
 
-// ---------------- MOVIES ----------------
-fetch(MOVIES)
-.then(r => r.text())
-.then(t => {
-
-    const rows = t.trim().split("\n").slice(1);
-
-    rows.forEach(r => {
-        const c = parseCSVLine(r);
-        loadMovie(c[0], "movies");
-    });
-});
-
-
-// ---------------- TOP RATED (DESCENDING) ----------------
+// ---------------- TOP RATED (POSTERS + SORTED) ----------------
 fetch(SCORE)
 .then(r => r.text())
 .then(t => {
@@ -201,17 +134,33 @@ fetch(SCORE)
 
     films.sort((a, b) => b.avg - a.avg);
 
-    let html = "";
+    const container = document.getElementById("top");
+    container.innerHTML = "";
 
     films.forEach(f => {
-        html += `
-        <div class="card">
-            <strong>${f.title}</strong><br>
-            ⭐ ${f.avg.toFixed(2)}
-        </div>`;
-    });
 
-    document.getElementById("top").innerHTML = html;
+        fetch(`https://www.omdbapi.com/?t=${encodeURIComponent(f.title)}&apikey=${API_KEY}`)
+        .then(r => r.json())
+        .then(data => {
+
+            if (data.Response !== "True") return;
+
+            const poster = (data.Poster && data.Poster !== "N/A")
+                ? data.Poster
+                : "https://via.placeholder.com/300x450?text=No+Poster";
+
+            const card = document.createElement("div");
+            card.className = "card";
+
+            card.innerHTML = `
+                <img src="${poster}">
+                <strong>${data.Title}</strong>
+                <small>⭐ ${f.avg.toFixed(2)}</small>
+            `;
+
+            container.appendChild(card);
+        });
+    });
 });
 
 
