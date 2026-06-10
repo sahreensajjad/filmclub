@@ -17,6 +17,7 @@
   </nav>
 </header>
 
+<!-- HERO -->
 <section class="hero">
   <div class="hero-content">
     <h2>Now Showing</h2>
@@ -24,21 +25,25 @@
   </div>
 </section>
 
+<!-- THEMES -->
 <section class="row">
   <h2>This Month’s Themes</h2>
   <div class="grid" id="themes"></div>
 </section>
 
+<!-- MOVIES -->
 <section class="row">
   <h2>Movie Posters</h2>
   <div class="grid" id="movies"></div>
 </section>
 
+<!-- TOP RATED -->
 <section class="row">
   <h2>Top Rated Films</h2>
   <div class="grid" id="top"></div>
 </section>
 
+<!-- HALL OF SHAME -->
 <section class="row">
   <h2>Hall of Shame 😈</h2>
   <div class="grid" id="shame"></div>
@@ -58,40 +63,71 @@ const SCORE =
 "https://docs.google.com/spreadsheets/d/13lWytzXH2oiIezzaSU_EmaNF6QqLWm3ym-qIdpdYGeY/export?format=csv&gid=1069437142";
 
 
-// ---------------- OMDb loader ----------------
+// ---------------- OMDB ----------------
 function loadMovie(title, containerId) {
 
     fetch(`https://www.omdbapi.com/?t=${encodeURIComponent(title)}&apikey=${API_KEY}`)
     .then(r => r.json())
     .then(data => {
 
-        if (data.Response === "False") return;
+        if (data.Response !== "True") return;
+
+        const poster = (data.Poster && data.Poster !== "N/A")
+            ? data.Poster
+            : "https://via.placeholder.com/300x450?text=No+Poster";
 
         const card = document.createElement("div");
         card.className = "card";
 
         card.innerHTML = `
-    <img src="${poster}">
-    <strong>${data.Title}</strong>
-    <small class="card-rating">⭐ ${data.imdbRating}</small>
-`;
+            <img src="${poster}">
+            <strong>${data.Title}</strong>
+            <small>⭐ ${data.imdbRating}</small>
+        `;
 
         document.getElementById(containerId).appendChild(card);
     });
 }
 
 
-// ---------------- CURRENT ----------------
+// ---------------- NOW SHOWING (UPDATED) ----------------
 fetch(CURRENT)
 .then(r => r.text())
 .then(t => {
 
     const rows = t.trim().split("\n");
 
-    const latest = rows[1].split(",");
-    document.getElementById("current").innerText =
-        latest[2] + " vs " + latest[3];
+    let latest = null;
 
+    for (let i = rows.length - 1; i >= 1; i--) {
+
+        const c = rows[i].split(",");
+
+        const colC = c[2]?.trim();
+        const colD = c[3]?.trim();
+
+        if (colC || colD) {
+            latest = { colC, colD };
+            break;
+        }
+    }
+
+    if (!latest) {
+        document.getElementById("current").innerText = "No current movie";
+        return;
+    }
+
+    let text = "";
+
+    if (latest.colC && latest.colD) {
+        text = `${latest.colC} and ${latest.colD}`;
+    } else {
+        text = latest.colC || latest.colD;
+    }
+
+    document.getElementById("current").innerText = text;
+
+    // themes (unchanged)
     let html = "";
 
     rows.slice(1).forEach(r => {
@@ -107,7 +143,7 @@ fetch(CURRENT)
 });
 
 
-// ---------------- MOVIES (POSTERS) ----------------
+// ---------------- MOVIES ----------------
 fetch(MOVIES)
 .then(r => r.text())
 .then(t => {
@@ -116,8 +152,7 @@ fetch(MOVIES)
 
     rows.forEach(r => {
         const c = r.split(",");
-        const title = c[0];
-        loadMovie(title, "movies");
+        loadMovie(c[0], "movies");
     });
 });
 
@@ -133,7 +168,6 @@ fetch(SCORE)
 
     rows.forEach(r => {
         const c = r.split(",");
-
         html += `
         <div class="card">
             <strong>${c[0]}</strong><br>
