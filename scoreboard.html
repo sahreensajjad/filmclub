@@ -18,64 +18,61 @@
 </header>
 
 <section class="row">
-
   <h2>🎬 Movie Scoreboard</h2>
   <div id="board">Loading...</div>
-
 </section>
 
 <script>
 
 const API_URL = "https://script.google.com/macros/s/AKfycbxHQxuQV-kCOEKEJd4JdeOcgHRUfJfdwGC5fSzV0OcUHk7fbfnzOjHkjzFuNUGsQ1Bc/exec";
-const SHEET = "Movie Scoreboard";
+const GID = "1069437142";
 
-let headers = [];
 let rows = [];
 
 load();
 
 function load() {
-  fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET))
+
+  fetch(API_URL + "?gid=" + GID)
     .then(r => r.json())
-    .then(data => {
+    .then(res => {
 
-      headers = data[0];
-      rows = data.slice(1);
-
+      rows = res.slice(1); // skip header
       render();
     });
 }
 
 function render() {
 
-  const movieCol = 0;
-  const posterCol = -1; // optional if you don't have posters yet
-
   let html = "<div class='grid'>";
 
   rows.forEach((row, i) => {
 
     const movie = row[0];
-    const suggestedBy = row[1];
-    const average = row[row.length - 1];
+    const suggested = row[1];
+    const avg = row[row.length - 1];
 
     if (!movie) return;
 
     html += `
-      <div class="card" style="min-height: 220px">
+      <div class="card">
 
-        <img src="https://source.unsplash.com/300x400/?movie,${encodeURIComponent(movie)}"
-             alt="${movie}">
+        <img src="https://source.unsplash.com/300x400/?movie,${encodeURIComponent(movie)}">
 
         <strong contenteditable="true"
-          onblur="save(${i},0,this.innerText)">${movie}</strong>
+          onblur="save(${i},0,this.innerText)">
+          ${movie}
+        </strong>
 
-        <small>Suggested by:
+        <small>
+          Suggested by:
           <span contenteditable="true"
-            onblur="save(${i},1,this.innerText)">${suggestedBy || ""}</span>
+            onblur="save(${i},1,this.innerText)">
+            ${suggested || ""}
+          </span>
         </small>
 
-        <small>⭐ Average: ${average || "N/A"}</small>
+        <small>⭐ ${avg || "N/A"}</small>
 
       </div>
     `;
@@ -90,18 +87,15 @@ function save(row, col, value) {
 
   fetch(API_URL, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      sheet: SHEET,
+      gid: GID,
       action: "update",
-      row: row + 2,
-      col: col + 1,
-      value: value
+      row,
+      col,
+      value
     })
   });
-
 }
 
 </script>
