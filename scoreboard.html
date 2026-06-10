@@ -2,7 +2,7 @@
 <html>
 <head>
 <link rel="stylesheet" href="style.css">
-<title>Scoreboard</title>
+<title>Movie Scoreboard</title>
 </head>
 
 <body>
@@ -11,45 +11,113 @@
   <h1 class="logo">MovieClub</h1>
   <nav>
     <a href="index.html">Home</a>
-    <a href="suggest.html">Suggest</a>
+    <a href="movies.html">Movie List</a>
+    <a href="scoreboard.html">Scoreboard</a>
     <a href="leaderboard.html">Leaderboard</a>
   </nav>
 </header>
 
 <section class="row">
-  <h1>🏆 Movie Scoreboard</h1>
-  <div class="grid" id="board"></div>
+
+  <div class="movie-header">
+    <h2>Movie Scoreboard</h2>
+
+    <button onclick="addRowToSheet()">➕ Add Row</button>
+  </div>
+
+  <div id="table-container">Loading...</div>
+
 </section>
 
 <script>
 
-const SCORE =
-"https://docs.google.com/spreadsheets/d/13lWytzXH2oiIezzaSU_EmaNF6QqLWm3ym-qIdpdYGeY/export?format=csv&gid=1069437142";
+const API_URL =
+"https://script.google.com/macros/s/AKfycbxHQxuQV-kCOEKEJd4JdeOcgHRUfJfdwGC5fSzV0OcUHk7fbfnzOjHkjzFuNUGsQ1Bc/exec";
 
-fetch(SCORE)
-.then(r => r.text())
-.then(t => {
-    const rows = t.trim().split("\n").slice(1);
+const SHEET_NAME = "Movie Scoreboard";
 
-    let html = "";
+let tableData = [];
+let headers = [];
 
-    rows.forEach(r => {
-        const c = r.split(",");
+loadData();
 
-        const movie = c[0] || "Unknown";
-        const suggestedBy = c[1] || "";
-        const avg = c[2] || "N/A";
+function loadData() {
 
-        html += `
-        <div class="card">
-            <strong>${movie}</strong><br>
-            <small>by ${suggestedBy}</small><br>
-            ⭐ ${avg}
-        </div>`;
+    fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET_NAME))
+    .then(res => res.json())
+    .then(data => {
+
+        headers = data[0];
+        tableData = data.slice(1);
+
+        renderTable();
     });
 
-    document.getElementById("board").innerHTML = html;
-});
+}
+
+function renderTable() {
+
+    let html = "<table>";
+
+    html += "<tr>";
+
+    headers.forEach(h => {
+        html += `<th>${h}</th>`;
+    });
+
+    html += "</tr>";
+
+    tableData.forEach((row, i) => {
+
+        html += "<tr>";
+
+        headers.forEach((_, j) => {
+
+            const value = row[j] ?? "";
+
+            html += `
+            <td
+                contenteditable="true"
+                onblur="saveCell(${i},${j},this.innerText)">
+                ${value}
+            </td>`;
+        });
+
+        html += "</tr>";
+    });
+
+    html += "</table>";
+
+    document.getElementById("table-container").innerHTML = html;
+}
+
+function saveCell(row, col, value) {
+
+    fetch(API_URL, {
+        method: "POST",
+        body: JSON.stringify({
+            sheet: SHEET_NAME,
+            action: "update",
+            row: row + 1,
+            col: col + 1,
+            value: value
+        })
+    });
+
+}
+
+function addRowToSheet() {
+
+    fetch(API_URL, {
+        method: "POST",
+        body: JSON.stringify({
+            sheet: SHEET_NAME,
+            action: "addRow"
+        })
+    })
+    .then(() => loadData());
+
+}
 
 </script>
 
