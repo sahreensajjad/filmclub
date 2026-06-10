@@ -12,8 +12,8 @@
   <nav>
     <a href="index.html">Home</a>
     <a href="movies.html">Movie List</a>
+    <a href="suggest.html">Suggest</a>
     <a href="leaderboard.html">Leaderboard</a>
-    <a href="hall-of-shame.html">Hall of Shame</a>
   </nav>
 </header>
 
@@ -39,210 +39,125 @@
 
 <!-- HALL OF SHAME -->
 <section class="row">
-  <h2>Hall of Shame 😈</h2>
+  <h2>Hall of Shame</h2>
   <div class="grid" id="shame"></div>
 </section>
 
 <script>
 
-const API_KEY = "2e340492";
-
-const CURRENT =
-"https://docs.google.com/spreadsheets/d/13lWytzXH2oiIezzaSU_EmaNF6QqLWm3ym-qIdpdYGeY/export?format=csv&gid=0";
-
-const SCORE =
-"https://docs.google.com/spreadsheets/d/13lWytzXH2oiIezzaSU_EmaNF6QqLWm3ym-qIdpdYGeY/export?format=csv&gid=1069437142";
+const API_URL =
+"https://script.google.com/macros/s/AKfycbyB0ggaTr5iGYZhTZ59YcFXuu6WZTfyNjfd7BE69-WD_zP3qX3MIvLq6MVhpnYV5GtX/exec";
 
 
-// ---------------- CSV PARSER ----------------
-function parseCSVLine(line) {
-    return line.split(",").map(x => x.trim().replace(/^"|"$/g, ""));
-}
+/* ---------------- NOW SHOWING ---------------- */
 
+fetch(API_URL + "?sheet=Current%20Selections")
+.then(r => r.json())
+.then(data => {
 
-// ---------------- NOW SHOWING ----------------
-fetch(CURRENT)
-.then(r => r.text())
-.then(t => {
+    const rows = data.slice(1);
 
-    const rows = t.trim().split("\n");
+    if (!rows.length) return;
 
-    let latest = null;
+    const last = rows[rows.length - 1];
 
-    for (let i = rows.length - 1; i >= 1; i--) {
+    const colC = last[2];
+    const colD = last[3];
 
-        const c = parseCSVLine(rows[i]);
+    let text = "";
 
-        const colC = c[2];
-        const colD = c[3];
-
-        if (colC || colD) {
-            latest = { colC, colD };
-            break;
-        }
-    }
-
-    if (!latest) {
-        document.getElementById("current").innerText = "No current movie";
-        return;
-    }
-
-    const text = latest.colC && latest.colD
-        ? `${latest.colC} and ${latest.colD}`
-        : (latest.colC || latest.colD);
+    if (colC && colD) text = colC + " and " + colD;
+    else text = colC || colD || "";
 
     document.getElementById("current").innerText = text;
-
 });
 
 
-// ---------------- MONTHLY THEMES + POSTERS ----------------
-fetch(CURRENT)
-.then(r => r.text())
-.then(t => {
+/* ---------------- THEMES ---------------- */
 
-    const rows = t.trim().split("\n").slice(1);
+fetch(API_URL + "?sheet=Movie%20List")
+.then(r => r.json())
+.then(data => {
+
+    const rows = data.slice(1);
 
     let html = "";
 
-    rows.forEach((r, index) => {
+    rows.forEach(r => {
 
-        const c = parseCSVLine(r);
+        const theme = r[0];
+        const movie = r[1];
 
-        const theme = c[1];
-        const movies = [c[2], c[3]].filter(Boolean);
+        if (!theme && !movie) return;
 
         html += `
-        <div class="theme-block">
-            <h3>${theme}</h3>
-            <div class="grid" id="theme-${index}"></div>
+        <div class="card">
+          <strong>${theme || "Theme"}</strong>
+          <small>${movie || ""}</small>
         </div>`;
-
-        setTimeout(() => {
-
-            movies.forEach(title => {
-
-                fetch(`https://www.omdbapi.com/?t=${encodeURIComponent(title)}&apikey=${API_KEY}`)
-                .then(res => res.json())
-                .then(data => {
-
-                    if (data.Response !== "True") return;
-
-                    const poster = (data.Poster && data.Poster !== "N/A")
-                        ? data.Poster
-                        : "https://via.placeholder.com/300x450?text=No+Poster";
-
-                    const card = document.createElement("div");
-                    card.className = "card";
-
-                    card.innerHTML = `
-                        <img src="${poster}">
-                        <strong>${data.Title}</strong>
-                    `;
-
-                    document.getElementById(`theme-${index}`).appendChild(card);
-                });
-            });
-
-        }, 0);
     });
 
     document.getElementById("themes").innerHTML = html;
 });
 
 
-// ---------------- TOP RATED (FIXED ORDER + POSTERS) ----------------
-fetch(SCORE)
-.then(r => r.text())
-.then(t => {
+/* ---------------- TOP RATED ---------------- */
 
-    const rows = t.trim().split("\n").slice(1);
+fetch(API_URL + "?sheet=Movie%20Scoreboard")
+.then(r => r.json())
+.then(data => {
 
-    const films = [];
+    const rows = data.slice(1);
 
-    rows.forEach(r => {
-
-        const c = parseCSVLine(r);
-
-        const title = c[0];
-        const avg = parseFloat(c[c.length - 1]);
-
-        if (!title || isNaN(avg)) return;
-
-        films.push({ title, avg });
-    });
-
-    films.sort((a, b) => b.avg - a.avg);
-
-    const container = document.getElementById("top");
-    container.innerHTML = "";
-
-    Promise.all(
-        films.map(f =>
-            fetch(`https://www.omdbapi.com/?t=${encodeURIComponent(f.title)}&apikey=${API_KEY}`)
-            .then(r => r.json())
-            .then(data => {
-
-                if (data.Response !== "True") return null;
-
-                const poster = (data.Poster && data.Poster !== "N/A")
-                    ? data.Poster
-                    : "https://via.placeholder.com/300x450?text=No+Poster";
-
-                return `
-                    <div class="card">
-                        <img src="${poster}">
-                        <strong>${data.Title}</strong>
-                        <small>⭐ ${f.avg.toFixed(2)}</small>
-                    </div>
-                `;
-            })
-        )
-    ).then(cards => {
-        container.innerHTML = cards.filter(Boolean).join("");
-    });
-
-});
-
-
-// ---------------- HALL OF SHAME ----------------
-fetch(SCORE)
-.then(r => r.text())
-.then(t => {
-
-    const rows = t.trim().split("\n").slice(1);
-
-    const users = {};
-
-    rows.forEach(r => {
-
-        const c = parseCSVLine(r);
-
-        const u = c[1]?.trim();
-        const avg = parseFloat(c[c.length - 1]);
-
-        if (!u || isNaN(avg)) return;
-
-        if (!users[u]) users[u] = { total:0, count:0 };
-
-        users[u].total += avg;
-        users[u].count += 1;
-    });
-
-    const arr = Object.keys(users).map(u => ({
-        name: u,
-        avg: users[u].total / users[u].count
-    }));
-
-    arr.sort((a, b) => a.avg - b.avg);
+    rows.sort((a, b) =>
+        parseFloat(b[b.length - 1] || 0) - parseFloat(a[a.length - 1] || 0)
+    );
 
     let html = "";
 
-    arr.slice(0,5).forEach(u => {
+    rows.forEach(r => {
+
+        const movie = r[1];
+        const avg = r[r.length - 1];
+
+        if (!movie) return;
+
         html += `
         <div class="card">
-            <strong>${u.name}</strong><br>
-            😈 ${u.avg.toFixed(2)}
+          <strong>${movie}</strong>
+          <small>⭐ ${avg || "N/A"}</small>
+        </div>`;
+    });
+
+    document.getElementById("top").innerHTML = html;
+});
+
+
+/* ---------------- HALL OF SHAME ---------------- */
+
+fetch(API_URL + "?sheet=Movie%20Scoreboard")
+.then(r => r.json())
+.then(data => {
+
+    const rows = data.slice(1);
+
+    rows.sort((a, b) =>
+        parseFloat(a[a.length - 1] || 0) - parseFloat(b[b.length - 1] || 0)
+    );
+
+    let html = "";
+
+    rows.forEach(r => {
+
+        const movie = r[1];
+        const avg = r[r.length - 1];
+
+        if (!movie) return;
+
+        html += `
+        <div class="card">
+          <strong>${movie}</strong>
+          <small>⭐ ${avg || "N/A"}</small>
         </div>`;
     });
 
