@@ -63,7 +63,7 @@ const SCORE =
 "https://docs.google.com/spreadsheets/d/13lWytzXH2oiIezzaSU_EmaNF6QqLWm3ym-qIdpdYGeY/export?format=csv&gid=1069437142";
 
 
-// ---------------- OMDB ----------------
+// ---------------- OMDb loader ----------------
 function loadMovie(title, containerId) {
 
     fetch(`https://www.omdbapi.com/?t=${encodeURIComponent(title)}&apikey=${API_KEY}`)
@@ -90,15 +90,16 @@ function loadMovie(title, containerId) {
 }
 
 
-// ---------------- NOW SHOWING (UPDATED) ----------------
+// ---------------- NOW SHOWING (FIXED DESCENDING) ----------------
 fetch(CURRENT)
 .then(r => r.text())
 .then(t => {
 
     const rows = t.trim().split("\n");
 
-    let latest = null;
+    let latestRow = null;
 
+    // bottom → top scan (true descending order)
     for (let i = rows.length - 1; i >= 1; i--) {
 
         const c = rows[i].split(",");
@@ -106,28 +107,28 @@ fetch(CURRENT)
         const colC = c[2]?.trim();
         const colD = c[3]?.trim();
 
-        if (colC || colD) {
-            latest = { colC, colD };
-            break;
-        }
+        if (!colC && !colD) continue;
+
+        latestRow = { colC, colD };
+        break;
     }
 
-    if (!latest) {
+    if (!latestRow) {
         document.getElementById("current").innerText = "No current movie";
         return;
     }
 
-    let text = "";
+    let text;
 
-    if (latest.colC && latest.colD) {
-        text = `${latest.colC} and ${latest.colD}`;
+    if (latestRow.colC && latestRow.colD) {
+        text = `${latestRow.colC} and ${latestRow.colD}`;
     } else {
-        text = latest.colC || latest.colD;
+        text = latestRow.colC || latestRow.colD;
     }
 
     document.getElementById("current").innerText = text;
 
-    // themes (unchanged)
+    // THEMES (unchanged)
     let html = "";
 
     rows.slice(1).forEach(r => {
