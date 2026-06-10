@@ -22,7 +22,7 @@
   <div class="movie-header">
     <h2>Movie List Editor</h2>
 
-    <button onclick="addRowToSheet()">➕ Add Row</button>
+    <button onclick="addRow()">➕ Add Row</button>
     <button onclick="downloadCSV()">Download CSV</button>
   </div>
 
@@ -32,18 +32,15 @@
 
 <script>
 
-const API_URL =
-"https://script.google.com/macros/s/AKfycbyB0ggaTr5iGYZhTZ59YcFXuu6WZTfyNjfd7BE69-WD_zP3qX3MIvLq6MVhpnYV5GtX/exec";
-
+const API_URL = "https://script.google.com/macros/s/AKfycbyB0ggaTr5iGYZhTZ59YcFXuu6WZTfyNjfd7BE69-WD_zP3qX3MIvLq6MVhpnYV5GtX/exec";
 const SHEET_NAME = "Movie List";
 
 let headers = [];
 let tableData = [];
 
-
-/* ---------------- LOAD ---------------- */
+/* LOAD DATA */
 fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET_NAME))
-.then(res => res.json())
+.then(r => r.json())
 .then(data => {
 
     headers = data[0];
@@ -53,34 +50,40 @@ fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET_NAME))
 });
 
 
-/* ---------------- RENDER ---------------- */
+/* RENDER TABLE (FIXED ALIGNMENT) */
 function renderTable() {
+
+    const COLS = 6;
 
     let html = "<table>";
 
     // headers
     html += "<tr>";
-    headers.forEach(h => html += `<th>${h}</th>`);
+    for (let i = 0; i < COLS; i++) {
+        html += `<th>${headers[i] || ""}</th>`;
+    }
     html += "</tr>";
 
     // rows
-    tableData.forEach((row, i) => {
+    for (let i = 0; i < tableData.length; i++) {
+
+        const sheetRow = i + 2;
 
         html += "<tr>";
 
-        headers.forEach((_, j) => {
+        for (let j = 0; j < COLS; j++) {
 
-            const value = row[j] ?? "";
+            const value = (tableData[i][j] ?? "");
 
             html += `
                 <td contenteditable="true"
-                    onblur="saveCell(${i}, ${j}, this.innerText)">
+                    onblur="saveCell(${sheetRow}, ${j+1}, this.innerText)">
                     ${value}
                 </td>`;
-        });
+        }
 
         html += "</tr>";
-    });
+    }
 
     html += "</table>";
 
@@ -88,7 +91,7 @@ function renderTable() {
 }
 
 
-/* ---------------- SAVE CELL ---------------- */
+/* SAVE CELL (FIXED ROW/COL MAPPING) */
 function saveCell(row, col, value) {
 
     fetch(API_URL, {
@@ -97,15 +100,15 @@ function saveCell(row, col, value) {
             sheet: SHEET_NAME,
             action: "update",
             row: row,
-            col: col + 1,
+            col: col,
             value: value
         })
     });
 }
 
 
-/* ---------------- ADD ROW ---------------- */
-function addRowToSheet() {
+/* ADD ROW */
+function addRow() {
 
     fetch(API_URL, {
         method: "POST",
@@ -117,13 +120,13 @@ function addRowToSheet() {
 }
 
 
-/* ---------------- CSV DOWNLOAD ---------------- */
+/* CSV EXPORT */
 function downloadCSV() {
 
     let csv = headers.join(",") + "\n";
 
-    tableData.forEach(row => {
-        csv += row.join(",") + "\n";
+    tableData.forEach(r => {
+        csv += r.join(",") + "\n";
     });
 
     const blob = new Blob([csv], { type: "text/csv" });
