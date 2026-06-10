@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+<link rel="stylesheet" href="style.css">
+<title>Hall of Shame</title>
+</head>
+
+<body>
+
+<header class="nav">
+  <h1 class="logo">MovieClub</h1>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="suggest.html">Suggest</a>
+    <a href="hall-of-shame.html">Hall of Shame</a>
+  </nav>
+</header>
+
+<section class="row">
+  <h1>😈 Hall of Shame (Worst Pickers First)</h1>
+  <div class="grid" id="board"></div>
+</section>
+
+<script>
+
+const SCORE =
+"https://docs.google.com/spreadsheets/d/13lWytzXH2oiIezzaSU_EmaNF6QqLWm3ym-qIdpdYGeY/export?format=csv&gid=1069437142";
+
+fetch(SCORE)
+.then(r => r.text())
+.then(t => {
+
+    const rows = t.trim().split("\n").slice(1);
+
+    const userStats = {};
+
+    rows.forEach(r => {
+        const cols = r.split(",");
+
+        const suggestedBy = cols[1]?.trim();
+        const avg = parseFloat(cols[cols.length - 1]); // last column = Average
+
+        if (!suggestedBy || isNaN(avg)) return;
+
+        if (!userStats[suggestedBy]) {
+            userStats[suggestedBy] = {
+                total: 0,
+                count: 0
+            };
+        }
+
+        userStats[suggestedBy].total += avg;
+        userStats[suggestedBy].count += 1;
+    });
+
+    // build leaderboard
+    const leaderboard = Object.keys(userStats).map(name => {
+        const u = userStats[name];
+        return {
+            name,
+            avg: u.total / u.count
+        };
+    });
+
+    // worst first (reverse ranking)
+    leaderboard.sort((a, b) => a.avg - b.avg);
+
+    let html = "";
+
+    leaderboard.forEach((u, i) => {
+        html += `
+        <div class="card">
+            <strong>#${i + 1} ${u.name}</strong><br>
+            😈 ${u.avg.toFixed(2)}
+        </div>`;
+    });
+
+    document.getElementById("board").innerHTML = html;
+});
+
+</script>
+
+</body>
+</html>
