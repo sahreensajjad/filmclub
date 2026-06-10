@@ -63,7 +63,30 @@ const SCORE =
 "https://docs.google.com/spreadsheets/d/13lWytzXH2oiIezzaSU_EmaNF6QqLWm3ym-qIdpdYGeY/export?format=csv&gid=1069437142";
 
 
-// ---------------- OMDb loader ----------------
+// ---------------- CSV PARSER ----------------
+function parseCSVLine(line) {
+    const result = [];
+    let current = "";
+    let inQuotes = false;
+
+    for (let char of line) {
+
+        if (char === '"') {
+            inQuotes = !inQuotes;
+        } else if (char === "," && !inQuotes) {
+            result.push(current);
+            current = "";
+        } else {
+            current += char;
+        }
+    }
+
+    result.push(current);
+    return result.map(x => x.trim());
+}
+
+
+// ---------------- OMDb LOADER ----------------
 function loadMovie(title, containerId) {
 
     fetch(`https://www.omdbapi.com/?t=${encodeURIComponent(title)}&apikey=${API_KEY}`)
@@ -90,7 +113,7 @@ function loadMovie(title, containerId) {
 }
 
 
-// ---------------- NOW SHOWING (FIXED DESCENDING) ----------------
+// ---------------- NOW SHOWING ----------------
 fetch(CURRENT)
 .then(r => r.text())
 .then(t => {
@@ -99,10 +122,9 @@ fetch(CURRENT)
 
     let latestRow = null;
 
-    // bottom → top scan (true descending order)
     for (let i = rows.length - 1; i >= 1; i--) {
 
-        const c = rows[i].split(",");
+        const c = parseCSVLine(rows[i]);
 
         const colC = c[2]?.trim();
         const colD = c[3]?.trim();
@@ -118,21 +140,19 @@ fetch(CURRENT)
         return;
     }
 
-    let text;
-
-    if (latestRow.colC && latestRow.colD) {
-        text = `${latestRow.colC} and ${latestRow.colD}`;
-    } else {
-        text = latestRow.colC || latestRow.colD;
-    }
+    let text = latestRow.colC && latestRow.colD
+        ? `${latestRow.colC} and ${latestRow.colD}`
+        : (latestRow.colC || latestRow.colD);
 
     document.getElementById("current").innerText = text;
 
-    // THEMES (unchanged)
+    // THEMES
     let html = "";
 
     rows.slice(1).forEach(r => {
-        const c = r.split(",");
+
+        const c = parseCSVLine(r);
+
         html += `
         <div class="card">
             <strong>${c[1]}</strong><br>
@@ -152,27 +172,42 @@ fetch(MOVIES)
     const rows = t.trim().split("\n").slice(1);
 
     rows.forEach(r => {
-        const c = r.split(",");
+        const c = parseCSVLine(r);
         loadMovie(c[0], "movies");
     });
 });
 
 
-// ---------------- TOP RATED ----------------
+// ---------------- TOP RATED (DESCENDING) ----------------
 fetch(SCORE)
 .then(r => r.text())
 .then(t => {
 
     const rows = t.trim().split("\n").slice(1);
 
-    let html = "";
+    const films = [];
 
     rows.forEach(r => {
-        const c = r.split(",");
+
+        const c = parseCSVLine(r);
+
+        const title = c[0];
+        const avg = parseFloat(c[c.length - 1]);
+
+        if (!title || isNaN(avg)) return;
+
+        films.push({ title, avg });
+    });
+
+    films.sort((a, b) => b.avg - a.avg);
+
+    let html = "";
+
+    films.forEach(f => {
         html += `
         <div class="card">
-            <strong>${c[0]}</strong><br>
-            ⭐ ${c[c.length - 1]}
+            <strong>${f.title}</strong><br>
+            ⭐ ${f.avg.toFixed(2)}
         </div>`;
     });
 
@@ -190,7 +225,9 @@ fetch(SCORE)
     const users = {};
 
     rows.forEach(r => {
-        const c = r.split(",");
+
+        const c = parseCSVLine(r);
+
         const u = c[1]?.trim();
         const avg = parseFloat(c[c.length - 1]);
 
@@ -207,7 +244,7 @@ fetch(SCORE)
         avg: users[u].total / users[u].count
     }));
 
-    arr.sort((a,b) => a.avg - b.avg);
+    arr.sort((a, b) => a.avg - b.avg);
 
     let html = "";
 
