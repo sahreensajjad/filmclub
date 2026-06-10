@@ -113,3 +113,12 @@ body {
     background: #e50914;
     border-radius: 10px;
 }
+
+.theme-block {
+    margin-bottom: 20px;
+}
+
+.theme-block h3 {
+    margin: 10px 0;
+    color: #fff;
+}
