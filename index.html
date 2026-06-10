@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Movie Club</title>
+<link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<header class="nav">
+  <h1 class="logo">MovieClub</h1>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="suggest.html">Suggest</a>
+    <a href="leaderboard.html">Leaderboard</a>
+  </nav>
+</header>
+
+<section class="hero">
+  <div class="hero-content">
+    <h2>Now Watching</h2>
+    <h1 id="movie">Loading...</h1>
+    <p id="desc">Weekly movie pick for the club</p>
+  </div>
+</section>
+
+<section class="row">
+  <h2>Popular Picks</h2>
+  <div class="grid" id="movies"></div>
+</section>
+
+<script>
+const SHEET_URL = "PASTE_CSV_LINK_HERE";
+
+fetch(SHEET_URL)
+.then(r => r.text())
+.then(t => {
+    const rows = t.trim().split("\n");
+    const current = rows[1].split(",");
+    document.getElementById("movie").innerText = current[0];
+
+    let html = "";
+    rows.slice(1).forEach(r => {
+        const cols = r.split(",");
+        html += `<div class="card">${cols[0]}</div>`;
+    });
+
+    document.getElementById("movies").innerHTML = html;
+});
+</script>
+
+</body>
+</html>
