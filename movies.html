@@ -4,9 +4,7 @@
     <link rel="stylesheet" href="style.css">
     <title>Movie List</title>
 </head>
-
 <body>
-
 <header class="nav">
     <h1 class="logo">MovieClub</h1>
     <nav>
@@ -16,44 +14,33 @@
         <a href="leaderboard.html">Leaderboard</a>
     </nav>
 </header>
-
 <section class="row">
-
     <div class="movie-header">
         <h2>Movie List Editor</h2>
-        <button onclick="addRow()">➕ Add Row</button>
     </div>
-
     <div id="table-container">Loading...</div>
-
 </section>
-
 <script>
-
 const API_URL = "https://script.google.com/macros/s/AKfycbyB0ggaTr5iGYZhTZ59YcFXuu6WZTfyNjfd7BE69-WD_zP3qX3MIvLq6MVhpnYV5GtX/exec";
 const SHEET_NAME = "Movie List";
-
+const COLS = 6;
 let headers = [];
 let tableData = [];
 
 /* LOAD DATA */
 fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET_NAME))
-.then(r => r.json())
-.then(data => {
-
-    headers = data[0];
-    tableData = data.slice(1);
-
-    renderTable();
-});
+    .then(r => r.json())
+    .then(data => {
+        headers = data[0];
+        tableData = data.slice(1);
+        renderTable();
+    });
 
 /* RENDER TABLE */
 function renderTable() {
-
-    const COLS = 6;
+    const container = document.getElementById("table-container");
 
     let html = "<table>";
-
     html += "<tr>";
     for (let i = 0; i < COLS; i++) {
         html += `<th>${headers[i] || ""}</th>`;
@@ -61,38 +48,78 @@ function renderTable() {
     html += "</tr>";
 
     for (let i = 0; i < tableData.length; i++) {
-
-        const sheetRow = i + 2;
-
-        html += "<tr>";
-
-        for (let j = 0; j < COLS; j++) {
-
-            const value = tableData[i][j] ?? "";
-
-            html += `
-                <td contenteditable="true"
-                    onblur="saveCell(${sheetRow}, ${j + 1}, this.innerText)">
-                    ${value}
-                </td>`;
-        }
-
-        html += "</tr>";
+        html += buildRow(i, i + 2);
     }
 
+    // Always append one empty "ghost" row at the bottom
+    html += buildGhostRow();
     html += "</table>";
+    container.innerHTML = html;
+}
 
-    document.getElementById("table-container").innerHTML = html;
+/* BUILD A DATA ROW */
+function buildRow(dataIndex, sheetRow) {
+    let html = "<tr>";
+    for (let j = 0; j < COLS; j++) {
+        const value = tableData[dataIndex]?.[j] ?? "";
+        html += `<td contenteditable="true"
+            onblur="saveCell(${sheetRow}, ${j + 1}, this.innerText)">${value}</td>`;
+    }
+    html += "</tr>";
+    return html;
+}
+
+/* BUILD THE EMPTY GHOST ROW */
+function buildGhostRow() {
+    let html = `<tr class="ghost-row">`;
+    for (let j = 0; j < COLS; j++) {
+        html += `<td contenteditable="true" oninput="onGhostInput(this)"></td>`;
+    }
+    html += "</tr>";
+    return html;
+}
+
+/* CALLED WHEN USER TYPES INTO THE GHOST ROW */
+function onGhostInput(cell) {
+    const ghostRow = cell.closest("tr");
+
+    // Promote ghost row: remove ghost class and wire up save handlers
+    ghostRow.classList.remove("ghost-row");
+    const newDataIndex = tableData.length;
+    const newSheetRow = newDataIndex + 2;
+
+    // Push a blank entry into tableData so indices stay aligned
+    tableData.push(Array(COLS).fill(""));
+
+    // Re-wire each cell in the now-real row
+    const cells = ghostRow.querySelectorAll("td");
+    cells.forEach((td, j) => {
+        td.removeAttribute("oninput");
+        td.setAttribute("onblur", `saveCell(${newSheetRow}, ${j + 1}, this.innerText)`);
+    });
+
+    // Add a fresh ghost row below
+    const table = ghostRow.closest("table");
+    const newGhost = document.createElement("tr");
+    newGhost.classList.add("ghost-row");
+    newGhost.innerHTML = Array(COLS).fill(0).map(() =>
+        `<td contenteditable="true" oninput="onGhostInput(this)"></td>`
+    ).join("");
+    table.appendChild(newGhost);
+
+    // Tell the sheet to append a new row
+    fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sheet: SHEET_NAME, action: "addRow" })
+    }).catch(err => console.error(err));
 }
 
 /* SAVE CELL */
 function saveCell(row, col, value) {
-
     fetch(API_URL, {
         method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
             sheet: SHEET_NAME,
             action: "update",
@@ -103,27 +130,6 @@ function saveCell(row, col, value) {
         })
     });
 }
-
-/* ADD ROW (FIXED) */
-function addRow() {
-
-    fetch(API_URL, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-            sheet: SHEET_NAME,
-            action: "addRow"
-        })
-    })
-    .then(() => {
-        location.reload();
-    })
-    .catch(err => console.error(err));
-}
-
 </script>
-
 </body>
 </html>
