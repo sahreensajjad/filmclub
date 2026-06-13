@@ -75,17 +75,17 @@ body {
     padding: 10px;
     display: flex;
     flex-direction: column;
-    justify-content: flex-end;
+    justify-content: flex-start;
     transition: transform 0.2s ease, background 0.2s ease;
     cursor: pointer;
 }
 
 .card:hover {
-    transform: scale(1.08);
+    transform: scale(1.03);
     background: #e50914;
 }
 
-/* POSTERS */
+/* MAIN POSTERS (Top Rated etc.) */
 .card img {
     width: 100%;
     height: 260px;
@@ -114,15 +114,30 @@ body {
     border-radius: 10px;
 }
 
-/* THEMES */
-.theme-block {
-    margin-bottom: 30px;
+/* =========================
+   MONTHLY THEMES POSTERS
+   ========================= */
+
+.poster-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 10px;
 }
 
-.theme-block h3 {
-    margin: 10px 0;
-    color: white;
-    font-size: 18px;
+.poster {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    font-size: 12px;
+    width: 90px;
+}
+
+.poster img {
+    width: 80px;
+    height: 120px;
+    object-fit: cover;
+    border-radius: 6px;
 }
 
 /* HALL OF SHAME */
@@ -210,7 +225,6 @@ td:focus {
     background: #2c2c2c;
 }
 
-/* TABLE SCROLL */
 #table-container {
     overflow-x: auto;
 }
