@@ -1,56 +1,51 @@
 <!DOCTYPE html>
 <html>
 <head>
-<link rel="stylesheet" href="style.css">
-<title>Movie List</title>
+    <link rel="stylesheet" href="style.css">
+    <title>Movie List</title>
 </head>
 
 <body>
 
 <header class="nav">
-  <h1 class="logo">MovieClub</h1>
-  <nav>
-    <a href="index.html">Home</a>
-    <a href="movies.html">Movie List</a>
-    <a href="themes.html">Themes</a>
-    <a href="leaderboard.html">Leaderboard</a>
-  </nav>
+    <h1 class="logo">MovieClub</h1>
+    <nav>
+        <a href="index.html">Home</a>
+        <a href="movies.html">Movie List</a>
+        <a href="themes.html">Themes</a>
+        <a href="leaderboard.html">Leaderboard</a>
+    </nav>
 </header>
 
 <section class="row">
 
-  <div class="movie-header">
-    <h2>Movie List Editor</h2>
-  </div>
+    <div class="movie-header">
+        <h2>Movie List Editor</h2>
+        <button onclick="addRow()">➕ Add Row</button>
+    </div>
 
-  <div id="table-container">Loading...</div>
+    <div id="table-container">Loading...</div>
 
 </section>
 
 <script>
 
-const API_URL = "https://script.google.com/macros/s/AKfycbyB0ggaTr5iGYZhTZ59YcFXuu6L2ZXCHNXgNG0xKm5G10TR-2btX1YSm0-Qisi7xVr/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbyB0ggaTr5iGYZhTZ59YcFXuu6WZTfyNjfd7BE69-WD_zP3qX3MIvLq6MVhpnYV5GtX/exec";
 const SHEET_NAME = "Movie List";
 
 let headers = [];
 let tableData = [];
 
-/* LOAD DATA (FIXED SAFE VERSION) */
+/* LOAD DATA */
 fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET_NAME))
 .then(r => r.json())
 .then(data => {
 
-    // ✅ works for BOTH response formats
-    headers = data.headers || data[0] || [];
-    tableData = data.rows || data.slice(1) || [];
+    headers = data[0];
+    tableData = data.slice(1);
 
     renderTable();
-})
-.catch(err => {
-    console.error(err);
-    document.getElementById("table-container").innerHTML = "Error loading data";
 });
-
 
 /* RENDER TABLE */
 function renderTable() {
@@ -90,7 +85,6 @@ function renderTable() {
     document.getElementById("table-container").innerHTML = html;
 }
 
-
 /* SAVE CELL */
 function saveCell(row, col, value) {
 
@@ -108,6 +102,25 @@ function saveCell(row, col, value) {
             key: "fLimclub"
         })
     });
+}
+
+/* ADD ROW (FIXED) */
+function addRow() {
+
+    fetch(API_URL, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            sheet: SHEET_NAME,
+            action: "addRow"
+        })
+    })
+    .then(() => {
+        location.reload();
+    })
+    .catch(err => console.error(err));
 }
 
 </script>
