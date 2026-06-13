@@ -113,6 +113,15 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Current Selections"))
 
         let poster = cache[movie];
 
+      const manualPosters = {
+          "I'm Not a Robot": "https://m.media-amazon.com/images/M/MV5BM2Y3ZTZkZTIt...jpg",
+          "Love Death & Robots": "https://m.media-amazon.com/images/M/MV5BMjE4NTc4Nz...jpg"
+      };
+      
+      if (manualPosters[movie]) {
+          poster = manualPosters[movie];
+      }
+
         if (!poster) {
             try {
                 const omdb = await fetch(
