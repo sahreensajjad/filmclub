@@ -97,12 +97,13 @@ function saveCell(row, col, value) {
             "Content-Type": "application/json"
         },
         body: JSON.stringify({
-            sheet: SHEET_NAME,
-            action: "update",
-            row: row,
-            col: col,
-            value: value
-        })
+        sheet: SHEET_NAME,
+        action: "update",
+        row: row,
+        col: col,
+        value: value,
+        key: "fLimclub"
+    })
     });
 }
 
