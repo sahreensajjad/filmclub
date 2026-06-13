@@ -1,11 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+<link rel="stylesheet" href="style.css">
+<title>MovieClub</title>
+</head>
+
+<body>
+
+<header class="nav">
+  <h1 class="logo">MovieClub</h1>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="movies.html">Movie List</a>
+    <a href="suggest.html">Suggest</a>
+    <a href="leaderboard.html">Leaderboard</a>
+  </nav>
+</header>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-content">
+    <h2>Now Showing</h2>
+    <h1 id="current">Loading...</h1>
+  </div>
+</section>
+
+<!-- THEMES -->
+<section class="row">
+  <h2>Monthly Themes</h2>
+  <div id="themes"></div>
+</section>
+
+<!-- TOP RATED -->
+<section class="row">
+  <h2>Top Rated Films</h2>
+  <div class="grid" id="top"></div>
+</section>
+
+<!-- HALL OF SHAME -->
+<section class="row">
+  <h2>Hall of Shame</h2>
+  <div class="grid" id="shame"></div>
+</section>
+
 <script>
 
 const API_URL = "https://script.google.com/macros/s/AKfycbxUysWGi4OIOdiuuGi8pk7OUEBFJCkXaItY9bRHpbgRlLFs3EMGJozvYXEQr6ZoEpdM/exec";
 const OMDB_KEY = "2e340492";
 
-/* ---------------- HELPERS ---------------- */
+/* ---------------- SCOREBOARD AGGREGATION ---------------- */
 
-// Group by NAME (Column B), average Column Y
 function processScoreboard(rows) {
 
     const NAME = 1; // Column B
@@ -33,7 +77,6 @@ function processScoreboard(rows) {
         avg: obj.total / obj.count
     }));
 }
-
 
 /* ---------------- NOW SHOWING ---------------- */
 
@@ -69,7 +112,7 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Current Selections"))
 });
 
 
-/* ---------------- MONTHLY THEMES ---------------- */
+/* ---------------- MONTHLY THEMES (NETFLIX STYLE) ---------------- */
 
 fetch(API_URL + "?sheet=" + encodeURIComponent("Current Selections"))
 .then(r => r.json())
@@ -89,10 +132,11 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Current Selections"))
         const theme = r[1];
         const movie = r[2];
 
-        // skip header row
-        if (month === "Month" && theme === "Theme" && movie === "Voted movies") {
-            continue;
-        }
+        if (
+            month === "Month" &&
+            theme === "Theme" &&
+            movie === "Voted movies"
+        ) continue;
 
         if (!theme || !movie) continue;
 
@@ -125,7 +169,7 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Current Selections"))
 });
 
 
-/* ---------------- TOP RATED (AGGREGATED) ---------------- */
+/* ---------------- TOP RATED ---------------- */
 
 fetch(API_URL + "?sheet=" + encodeURIComponent("Movie Scoreboard"))
 .then(r => r.json())
@@ -134,7 +178,7 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Movie Scoreboard"))
     const rows = data.rows || [];
 
     const processed = processScoreboard(rows)
-        .sort((a, b) => b.avg - a.avg); // DESC
+        .sort((a, b) => b.avg - a.avg);
 
     let html = "";
 
@@ -151,7 +195,7 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Movie Scoreboard"))
 });
 
 
-/* ---------------- HALL OF SHAME (AGGREGATED) ---------------- */
+/* ---------------- HALL OF SHAME ---------------- */
 
 fetch(API_URL + "?sheet=" + encodeURIComponent("Movie Scoreboard"))
 .then(r => r.json())
@@ -160,7 +204,7 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Movie Scoreboard"))
     const rows = data.rows || [];
 
     const processed = processScoreboard(rows)
-        .sort((a, b) => a.avg - b.avg); // ASC
+        .sort((a, b) => a.avg - b.avg);
 
     let html = "";
 
@@ -177,3 +221,6 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Movie Scoreboard"))
 });
 
 </script>
+
+</body>
+</html>
