@@ -82,7 +82,7 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Current Selections"))
 });
 
 
-/* ---------------- THEMES (FULL POSTER CARDS) ---------------- */
+/* ---------------- MONTHLY THEMES ---------------- */
 
 fetch(API_URL + "?sheet=" + encodeURIComponent("Current Selections"))
 .then(r => r.json())
@@ -92,33 +92,46 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Current Selections"))
     const container = document.getElementById("themes");
 
     let html = "";
+    const cache = {};
 
-    for (const r of rows) {
+    for (let i = 0; i < rows.length; i++) {
 
+        const r = rows[i];
+
+        const month = r[0];
         const theme = r[1];
         const movie = r[2];
 
+        // skip header row safely
+        if (
+            month === "Month" &&
+            theme === "Theme" &&
+            movie === "Voted movies"
+        ) continue;
+
         if (!theme || !movie) continue;
 
-        let poster = "";
+        let poster = cache[movie];
 
-        try {
-            const omdb = await fetch(
-                `https://www.omdbapi.com/?t=${encodeURIComponent(movie)}&apikey=${OMDB_KEY}`
-            ).then(r => r.json());
+        if (!poster) {
+            try {
+                const omdb = await fetch(
+                    `https://www.omdbapi.com/?t=${encodeURIComponent(movie)}&apikey=${OMDB_KEY}`
+                ).then(r => r.json());
 
-            poster = (omdb.Poster && omdb.Poster !== "N/A") ? omdb.Poster : "";
+                poster = (omdb.Poster && omdb.Poster !== "N/A") ? omdb.Poster : "";
+                cache[movie] = poster;
 
-        } catch (e) {
-            poster = "";
+            } catch (e) {
+                poster = "";
+            }
         }
 
         html += `
         <div class="theme-card">
-            <img src="${poster}" alt="${movie}">
-            <div class="theme-overlay">
+            <img src="${poster}" alt="${theme}">
+            <div class="theme-info">
                 <strong>${theme}</strong>
-                <small>${movie}</small>
             </div>
         </div>`;
     }
@@ -135,23 +148,21 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Movie Scoreboard"))
 
     const rows = data.rows || [];
 
-    rows.sort((a, b) =>
-        parseFloat(b[b.length - 1] || 0) - parseFloat(a[a.length - 1] || 0)
-    );
+    const MOVIE = 0;   // Column A
+    const AVG = 24;    // Column Y
+
+    const sorted = rows
+        .filter(r => r && r[MOVIE] && r[AVG] !== "" && r[AVG] !== undefined)
+        .sort((a, b) => parseFloat(b[AVG]) - parseFloat(a[AVG]));
 
     let html = "";
 
-    rows.forEach(r => {
-
-        const movie = r[1];
-        const avg = r[r.length - 1];
-
-        if (!movie) return;
+    sorted.forEach(r => {
 
         html += `
         <div class="card">
-          <strong>${movie}</strong>
-          <small>⭐ ${avg || "N/A"}</small>
+            <strong>${r[MOVIE]}</strong>
+            <small>⭐ ${r[AVG]}</small>
         </div>`;
     });
 
@@ -167,23 +178,21 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Movie Scoreboard"))
 
     const rows = data.rows || [];
 
-    rows.sort((a, b) =>
-        parseFloat(a[a.length - 1] || 0) - parseFloat(b[b.length - 1] || 0)
-    );
+    const MOVIE = 0;
+    const AVG = 24;
+
+    const sorted = rows
+        .filter(r => r && r[MOVIE] && r[AVG] !== "" && r[AVG] !== undefined)
+        .sort((a, b) => parseFloat(a[AVG]) - parseFloat(b[AVG]));
 
     let html = "";
 
-    rows.forEach(r => {
-
-        const movie = r[1];
-        const avg = r[r.length - 1];
-
-        if (!movie) return;
+    sorted.forEach(r => {
 
         html += `
         <div class="card">
-          <strong>${movie}</strong>
-          <small>⭐ ${avg || "N/A"}</small>
+            <strong>${r[MOVIE]}</strong>
+            <small>⭐ ${r[AVG]}</small>
         </div>`;
     });
 
