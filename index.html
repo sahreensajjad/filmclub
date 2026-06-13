@@ -17,7 +17,6 @@
   </nav>
 </header>
 
-<!-- HERO -->
 <section class="hero">
   <div class="hero-content">
     <h2>Now Showing</h2>
@@ -25,19 +24,16 @@
   </div>
 </section>
 
-<!-- THEMES -->
 <section class="row">
   <h2>Monthly Themes</h2>
   <div class="grid" id="themes">Loading...</div>
 </section>
 
-<!-- TOP RATED -->
 <section class="row">
   <h2>Top Rated Films</h2>
   <div class="grid" id="top">Loading...</div>
 </section>
 
-<!-- HALL OF SHAME -->
 <section class="row">
   <h2>Hall of Shame</h2>
   <div class="grid" id="shame">Loading...</div>
@@ -45,16 +41,12 @@
 
 <script>
 
-
 const API_URL = "https://script.google.com/macros/s/AKfycbxUysWGi4OIOdiuuGi8pk7OUEBFJCkXaItY9bRHpbgRlLFs3EMGJozvYXEQr6ZoEpdM/exec";
-
-const SHEET_MOVIE_LIST = "Movie List";
-const SHEET_SCOREBOARD = "Movie Scoreboard";
-const SHEET_CURRENT = "Current Selections";
+const OMDB_KEY = "2e340492";
 
 /* ---------------- NOW SHOWING ---------------- */
 
-fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET_CURRENT))
+fetch(API_URL + "?sheet=" + encodeURIComponent("Current Selections"))
 .then(r => r.json())
 .then(data => {
 
@@ -67,45 +59,81 @@ fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET_CURRENT))
         return;
     }
 
-    const colA = last[0];
-    const colB = last[1];
+    const a = last[0];
+    const b = last[1];
 
     document.getElementById("current").innerText =
-        colA && colB ? colA + " and " + colB : (colA || colB || "");
+        a && b ? a + " and " + b : (a || b || "");
 });
 
 
-/* ---------------- THEMES ---------------- */
+/* ---------------- MONTHLY THEMES + POSTERS ---------------- */
 
-fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET_CURRENT))
+fetch(API_URL + "?sheet=" + encodeURIComponent("Current Selections"))
 .then(r => r.json())
-.then(data => {
+.then(async data => {
 
     const rows = data.rows || [];
+    const container = document.getElementById("themes");
 
     let html = "";
+    const posterCache = {};
 
-    rows.forEach(r => {
+    for (const r of rows) {
 
-        const theme = r[0];
-        const movie = r[1];
+        const theme = r[1];
+        const movies = r.slice(2).filter(Boolean);
 
-        if (!theme && !movie) return;
+        if (!theme) continue;
+
+        let postersHTML = "";
+
+        for (const movie of movies) {
+
+            let poster = posterCache[movie];
+
+            if (!poster) {
+                try {
+                    const res = await fetch(
+                        `https://www.omdbapi.com/?t=${encodeURIComponent(movie)}&apikey=${OMDB_KEY}`
+                    );
+                    const omdb = await res.json();
+
+                    poster = (omdb.Poster && omdb.Poster !== "N/A")
+                        ? omdb.Poster
+                        : "";
+
+                    posterCache[movie] = poster;
+
+                } catch (e) {
+                    poster = "";
+                }
+            }
+
+            postersHTML += `
+                <div class="poster">
+                    ${poster ? `<img src="${poster}" alt="${movie}">` : ""}
+                    <small>${movie}</small>
+                </div>
+            `;
+        }
 
         html += `
         <div class="card">
-          <strong>${theme || ""}</strong>
-          <small>${movie || ""}</small>
+            <strong>${theme}</strong>
+            <div class="poster-row">
+                ${postersHTML}
+            </div>
         </div>`;
-    });
+    }
 
-    document.getElementById("themes").innerHTML = html;
+    container.innerHTML = html;
 });
 
 
 /* ---------------- TOP RATED ---------------- */
 
-fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET_SCOREBOARD))
+fetch(API_URL + "?sheet=" + encodeURIComponent("Movie Scoreboard"))
 .then(r => r.json())
 .then(data => {
 
@@ -137,7 +165,7 @@ fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET_SCOREBOARD))
 
 /* ---------------- HALL OF SHAME ---------------- */
 
-fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET_SCOREBOARD))
+fetch(API_URL + "?sheet=" + encodeURIComponent("Movie Scoreboard"))
 .then(r => r.json())
 .then(data => {
 
