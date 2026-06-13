@@ -78,6 +78,7 @@ function processScoreboard(rows) {
     }));
 }
 
+
 /* ---------------- NOW SHOWING ---------------- */
 
 fetch(API_URL + "?sheet=" + encodeURIComponent("Current Selections"))
@@ -112,7 +113,7 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Current Selections"))
 });
 
 
-/* ---------------- MONTHLY THEMES (NETFLIX STYLE) ---------------- */
+/* ---------------- MONTHLY THEMES ---------------- */
 
 fetch(API_URL + "?sheet=" + encodeURIComponent("Current Selections"))
 .then(r => r.json())
@@ -169,33 +170,60 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Current Selections"))
 });
 
 
-/* ---------------- TOP RATED ---------------- */
+/* ---------------- TOP RATED (COLUMN A + POSTERS) ---------------- */
 
 fetch(API_URL + "?sheet=" + encodeURIComponent("Movie Scoreboard"))
 .then(r => r.json())
-.then(data => {
+.then(async data => {
 
     const rows = data.rows || [];
+    const container = document.getElementById("top");
 
-    const processed = processScoreboard(rows)
-        .sort((a, b) => b.avg - a.avg);
+    const MOVIE = 0;  // Column A (FIXED)
+    const AVG = 24;   // Column Y
+
+    const cache = {};
+
+    const sorted = rows
+        .filter(r => r && r[MOVIE] && r[AVG] !== "" && r[AVG] !== undefined)
+        .sort((a, b) => parseFloat(b[AVG]) - parseFloat(a[AVG]));
 
     let html = "";
 
-    processed.forEach(r => {
+    for (const r of sorted) {
+
+        const movie = r[MOVIE];
+        const avg = r[AVG];
+
+        let poster = cache[movie];
+
+        if (!poster) {
+            try {
+                const omdb = await fetch(
+                    `https://www.omdbapi.com/?t=${encodeURIComponent(movie)}&apikey=${OMDB_KEY}`
+                ).then(r => r.json());
+
+                poster = (omdb.Poster && omdb.Poster !== "N/A") ? omdb.Poster : "";
+                cache[movie] = poster;
+
+            } catch (e) {
+                poster = "";
+            }
+        }
 
         html += `
         <div class="card">
-            <strong>${r.name}</strong>
-            <small>⭐ ${r.avg.toFixed(2)}</small>
+            <img src="${poster}" alt="${movie}">
+            <strong>${movie}</strong>
+            <small>⭐ ${avg}</small>
         </div>`;
-    });
+    }
 
-    document.getElementById("top").innerHTML = html;
+    container.innerHTML = html;
 });
 
 
-/* ---------------- HALL OF SHAME ---------------- */
+/* ---------------- HALL OF SHAME (UNCHANGED) ---------------- */
 
 fetch(API_URL + "?sheet=" + encodeURIComponent("Movie Scoreboard"))
 .then(r => r.json())
