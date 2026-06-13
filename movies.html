@@ -12,7 +12,7 @@
   <nav>
     <a href="index.html">Home</a>
     <a href="movies.html">Movie List</a>
-    <a href="suggest.html">Suggest</a>
+    <a href="themes.html">Themes</a>
     <a href="leaderboard.html">Leaderboard</a>
   </nav>
 </header>
@@ -21,9 +21,7 @@
 
   <div class="movie-header">
     <h2>Movie List Editor</h2>
-
     <button onclick="addRow()">➕ Add Row</button>
-    <button onclick="downloadCSV()">Download CSV</button>
   </div>
 
   <div id="table-container">Loading...</div>
@@ -36,24 +34,26 @@ const API_URL = "https://script.google.com/macros/s/AKfycbyB0ggaTr5iGYZhTZ59YcFX
 const SHEET_NAME = "Movie List";
 
 let headers = [];
-let tableData = [];
+let rows = [];
 
-/* LOAD DATA */
+/* ---------------- LOAD ---------------- */
+
 fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET_NAME))
 .then(r => r.json())
 .then(data => {
 
-    headers = data[0];
-    tableData = data.slice(1);
+    headers = data.headers || [];
+    rows = data.rows || [];
 
     renderTable();
 });
 
 
-/* RENDER TABLE */
+/* ---------------- RENDER ---------------- */
+
 function renderTable() {
 
-    const COLS = 6;
+    const COLS = headers.length || 6;
 
     let html = "<table>";
 
@@ -65,7 +65,7 @@ function renderTable() {
     html += "</tr>";
 
     // rows
-    for (let i = 0; i < tableData.length; i++) {
+    for (let i = 0; i < rows.length; i++) {
 
         const sheetRow = i + 2;
 
@@ -73,7 +73,7 @@ function renderTable() {
 
         for (let j = 0; j < COLS; j++) {
 
-            const value = (tableData[i][j] ?? "");
+            const value = rows[i][j] ?? "";
 
             html += `
                 <td contenteditable="true"
@@ -91,7 +91,8 @@ function renderTable() {
 }
 
 
-/* SAVE CELL (FIXED + SAFE) */
+/* ---------------- SAVE ---------------- */
+
 function saveCell(row, col, value) {
 
     fetch(API_URL, {
@@ -110,7 +111,8 @@ function saveCell(row, col, value) {
 }
 
 
-/* ADD ROW */
+/* ---------------- ADD ROW ---------------- */
+
 function addRow() {
 
     fetch(API_URL, {
@@ -122,28 +124,17 @@ function addRow() {
             sheet: SHEET_NAME,
             action: "addRow"
         })
-    }).then(() => location.reload());
-}
-
-
-/* CSV EXPORT */
-function downloadCSV() {
-
-    let csv = headers.join(",") + "\n";
-
-    tableData.forEach(r => {
-        csv += r.join(",") + "\n";
+    })
+    .then(() => {
+        // reload data properly (not full refresh needed but safe)
+        return fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET_NAME));
+    })
+    .then(r => r.json())
+    .then(data => {
+        headers = data.headers || [];
+        rows = data.rows || [];
+        renderTable();
     });
-
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "movie-list.csv";
-    a.click();
-
-    URL.revokeObjectURL(url);
 }
 
 </script>
