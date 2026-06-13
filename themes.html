@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html>
+<head>
+<link rel="stylesheet" href="style.css">
+<title>Themes</title>
+</head>
+
+<body>
+
+<header class="nav">
+  <h1 class="logo">MovieClub</h1>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="movies.html">Movie List</a>
+    <a href="themes.html">Themes</a>
+    <a href="leaderboard.html">Leaderboard</a>
+  </nav>
+</header>
+
+<section class="row">
+
+  <div class="movie-header">
+    <h2>Themes Editor</h2>
+
+    <button onclick="addRow()">➕ Add Row</button>
+    <button onclick="downloadCSV()">Download CSV</button>
+  </div>
+
+  <div id="table-container">Loading...</div>
+
+</section>
+
+<script>
+
+const API_URL = "https://script.google.com/macros/s/AKfycbxUysWGi4OIOdiuuGi8pk7OUEBFJCkXaItY9bRHpbgRlLFs3EMGJozvYXEQr6ZoEpdM/exec";
+const SHEET_NAME = "Themes";
+
+let headers = [];
+let tableData = [];
+
+/* ---------------- LOAD ---------------- */
+
+fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET_NAME))
+.then(r => r.json())
+.then(data => {
+
+    headers = data[0] || [];
+    tableData = data.slice(1) || [];
+
+    renderTable();
+});
+
+
+/* ---------------- RENDER ---------------- */
+
+function renderTable() {
+
+    const COLS = headers.length || 10;
+
+    let html = "<table>";
+
+    // headers
+    html += "<tr>";
+    for (let i = 0; i < COLS; i++) {
+        html += `<th>${headers[i] || ""}</th>`;
+    }
+    html += "</tr>";
+
+    // rows
+    for (let i = 0; i < tableData.length; i++) {
+
+        const sheetRow = i + 2;
+
+        html += "<tr>";
+
+        for (let j = 0; j < COLS; j++) {
+
+            const value = tableData[i][j] ?? "";
+
+            html += `
+                <td contenteditable="true"
+                    onblur="saveCell(${sheetRow}, ${j + 1}, this.innerText)">
+                    ${value}
+                </td>`;
+        }
+
+        html += "</tr>";
+    }
+
+    html += "</table>";
+
+    document.getElementById("table-container").innerHTML = html;
+}
+
+
+/* ---------------- SAVE ---------------- */
+
+function saveCell(row, col, value) {
+
+    fetch(API_URL, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            sheet: SHEET_NAME,
+            action: "update",
+            row: row,
+            col: col,
+            value: value
+        })
+    });
+}
+
+
+/* ---------------- ADD ROW ---------------- */
+
+function addRow() {
+
+    fetch(API_URL, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            sheet: SHEET_NAME,
+            action: "addRow"
+        })
+    }).then(() => location.reload());
+}
+
+
+/* ---------------- EXPORT CSV ---------------- */
+
+function downloadCSV() {
+
+    let csv = headers.join(",") + "\n";
+
+    tableData.forEach(r => {
+        csv += r.join(",") + "\n";
+    });
+
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "themes.csv";
+    a.click();
+
+    URL.revokeObjectURL(url);
+}
+
+</script>
+
+</body>
+</html>
