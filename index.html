@@ -57,12 +57,14 @@ function processScoreboard(rows) {
 
     const map = {};
 
-    rows.forEach(r => {
+    for (let i = 1; i < rows.length; i++) {  // ✅ SKIP HEADER ROW
+
+        const r = rows[i];
 
         const name = r[NAME];
         const score = parseFloat(r[AVG]);
 
-        if (!name || isNaN(score)) return;
+        if (!name || isNaN(score)) continue;
 
         if (!map[name]) {
             map[name] = { total: 0, count: 0 };
@@ -70,7 +72,7 @@ function processScoreboard(rows) {
 
         map[name].total += score;
         map[name].count += 1;
-    });
+    }
 
     return Object.entries(map).map(([name, obj]) => ({
         name,
@@ -170,7 +172,7 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Current Selections"))
 });
 
 
-/* ---------------- TOP RATED (COLUMN A + POSTERS) ---------------- */
+/* ---------------- TOP RATED (FIXED HEADER SKIP) ---------------- */
 
 fetch(API_URL + "?sheet=" + encodeURIComponent("Movie Scoreboard"))
 .then(r => r.json())
@@ -179,21 +181,21 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Movie Scoreboard"))
     const rows = data.rows || [];
     const container = document.getElementById("top");
 
-    const MOVIE = 0;  // Column A (FIXED)
-    const AVG = 24;   // Column Y
+    const MOVIE = 0; // Column A
+    const AVG = 24;  // Column Y
 
     const cache = {};
 
-    const sorted = rows
-        .filter(r => r && r[MOVIE] && r[AVG] !== "" && r[AVG] !== undefined)
-        .sort((a, b) => parseFloat(b[AVG]) - parseFloat(a[AVG]));
-
     let html = "";
 
-    for (const r of sorted) {
+    for (let i = 1; i < rows.length; i++) {   // ✅ SKIP HEADER ROW
+
+        const r = rows[i];
 
         const movie = r[MOVIE];
         const avg = r[AVG];
+
+        if (!movie || avg === undefined || avg === "") continue;
 
         let poster = cache[movie];
 
