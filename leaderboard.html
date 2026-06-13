@@ -11,39 +11,98 @@
   <h1 class="logo">MovieClub</h1>
   <nav>
     <a href="index.html">Home</a>
+    <a href="movies.html">Movie List</a>
     <a href="suggest.html">Suggest</a>
     <a href="leaderboard.html">Leaderboard</a>
   </nav>
 </header>
 
 <section class="row">
-  <h1>🏆 Movie Scoreboard</h1>
-  <div class="grid" id="board"></div>
+  <h2>Picky Meter Leaderboard 🧠</h2>
+  <div class="grid" id="leaderboard"></div>
 </section>
 
 <script>
 
-const SCORE =
-"https://docs.google.com/spreadsheets/d/13lWytzXH2oiIezzaSU_EmaNF6QqLWm3ym-qIdpdYGeY/export?format=csv&gid=1069437142";
+const API_URL = "https://script.google.com/macros/s/AKfycbxUysWGi4OIOdiuuGi8pk7OUEBFJCkXaItY9bRHpbgRlLFs3EMGJozvYXEQr6ZoEpdM/exec";
 
-fetch(SCORE)
-.then(r => r.text())
-.then(t => {
-    const rows = t.trim().split("\n").slice(1);
+/* ---------------- PICKY METER ---------------- */
+
+function computePicky(rows) {
+
+    const NAME_COL = 1;   // Column B
+    const START = 2;      // Column C
+    const END = 24;       // Column Y
+
+    const map = {};
+
+    for (let i = 1; i < rows.length; i++) { // skip header
+
+        const r = rows[i];
+
+        const name = r[NAME_COL];
+        if (!name) continue;
+
+        if (!map[name]) {
+            map[name] = { total: 0, count: 0 };
+        }
+
+        for (let c = START; c <= END; c++) {
+
+            const val = parseFloat(r[c]);
+
+            if (!isNaN(val)) {
+                map[name].total += val;
+                map[name].count += 1;
+            }
+        }
+    }
+
+    return Object.entries(map)
+        .map(([name, obj]) => {
+
+            if (obj.count === 0) return null;
+
+            const avg = obj.total / obj.count;
+            const picky = 10 - avg;
+
+            return {
+                name,
+                avg,
+                picky
+            };
+        })
+        .filter(x => x !== null);
+}
+
+
+/* ---------------- LOAD ---------------- */
+
+fetch(API_URL + "?sheet=" + encodeURIComponent("Movie Scoreboard"))
+.then(r => r.json())
+.then(data => {
+
+    const rows = data.rows || [];
+    const container = document.getElementById("leaderboard");
+
+    const people = computePicky(rows)
+        .sort((a, b) => b.picky - a.picky); // highest picky first
 
     let html = "";
 
-    rows.forEach(r => {
-        const c = r.split(",");
+    people.forEach(p => {
 
         html += `
         <div class="card">
-            <strong>${c[0]}</strong><br>
-            ⭐ ${c[2] || "N/A"}
+            <strong>${p.name}</strong>
+            <small>
+                Picky: ${p.picky.toFixed(2)}<br>
+                Avg: ${p.avg.toFixed(2)}
+            </small>
         </div>`;
     });
 
-    document.getElementById("board").innerHTML = html;
+    container.innerHTML = html;
 });
 
 </script>
