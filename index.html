@@ -28,30 +28,28 @@
 <!-- THEMES -->
 <section class="row">
   <h2>Monthly Themes</h2>
-  <div class="grid" id="themes"></div>
+  <div class="grid" id="themes">Loading...</div>
 </section>
 
 <!-- TOP RATED -->
 <section class="row">
   <h2>Top Rated Films</h2>
-  <div class="grid" id="top"></div>
+  <div class="grid" id="top">Loading...</div>
 </section>
 
 <!-- HALL OF SHAME -->
 <section class="row">
   <h2>Hall of Shame</h2>
-  <div class="grid" id="shame"></div>
+  <div class="grid" id="shame">Loading...</div>
 </section>
 
 <script>
 
-const API_URL =
-"https://script.google.com/macros/s/AKfycbyB0ggaTr5iGYZhTZ59YcFXuu6WZTfyNjfd7BE69-WD_zP3qX3MIvLq6MVhpnYV5GtX/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbyB0ggaTr5iGYZhTZ59YcFXuu6WZTfyNjfd7BE69-WD_zP3qX3MIvLq6MVhpnYV5GtX/exec";
 
 const SHEET_MOVIE_LIST = "Movie List";
 const SHEET_SCOREBOARD = "Movie Scoreboard";
 const SHEET_CURRENT = "Current Selections";
-
 
 /* ---------------- NOW SHOWING ---------------- */
 
@@ -59,7 +57,12 @@ fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET_CURRENT))
 .then(r => r.json())
 .then(data => {
 
-    const rows = data.rows;
+    const rows = data.rows || [];
+
+    if (!rows.length) {
+        document.getElementById("current").innerText = "No data";
+        return;
+    }
 
     const last = rows[rows.length - 1];
 
@@ -73,11 +76,11 @@ fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET_CURRENT))
 
 /* ---------------- THEMES ---------------- */
 
-fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET_MOVIE_LIST))
+fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET_CURRENT))
 .then(r => r.json())
 .then(data => {
 
-    const rows = data.rows;
+    const rows = data.rows || [];
 
     let html = "";
 
@@ -105,7 +108,7 @@ fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET_SCOREBOARD))
 .then(r => r.json())
 .then(data => {
 
-    const rows = data.rows;
+    const rows = data.rows || [];
 
     rows.sort((a, b) =>
         parseFloat(b[b.length - 1] || 0) - parseFloat(a[a.length - 1] || 0)
@@ -137,7 +140,7 @@ fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET_SCOREBOARD))
 .then(r => r.json())
 .then(data => {
 
-    const rows = data.rows;
+    const rows = data.rows || [];
 
     rows.sort((a, b) =>
         parseFloat(a[a.length - 1] || 0) - parseFloat(b[b.length - 1] || 0)
