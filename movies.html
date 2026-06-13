@@ -35,15 +35,20 @@ const SHEET_NAME = "Movie List";
 let headers = [];
 let tableData = [];
 
-/* LOAD DATA */
+/* LOAD DATA (FIXED SAFE VERSION) */
 fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET_NAME))
 .then(r => r.json())
 .then(data => {
 
-    headers = data.headers || data[0];
-    tableData = data.rows || data.slice(1);
+    // ✅ works for BOTH response formats
+    headers = data.headers || data[0] || [];
+    tableData = data.rows || data.slice(1) || [];
 
     renderTable();
+})
+.catch(err => {
+    console.error(err);
+    document.getElementById("table-container").innerHTML = "Error loading data";
 });
 
 
@@ -86,7 +91,7 @@ function renderTable() {
 }
 
 
-/* SAVE CELL + AUTO ROW */
+/* SAVE CELL */
 function saveCell(row, col, value) {
 
     fetch(API_URL, {
@@ -102,42 +107,6 @@ function saveCell(row, col, value) {
             value: value,
             key: "fLimclub"
         })
-    });
-
-    // detect last row
-    const isLastRow = row === tableData.length + 1;
-
-    if (isLastRow && value.trim() !== "") {
-        addEmptyRow();
-    }
-}
-
-
-/* ADD NEW EMPTY ROW */
-function addEmptyRow() {
-
-    fetch(API_URL, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-            sheet: SHEET_NAME,
-            action: "addRow",
-            key: "fLimclub"
-        })
-    })
-    .then(() => {
-
-        return fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET_NAME));
-    })
-    .then(r => r.json())
-    .then(data => {
-
-        headers = data.headers || data[0];
-        tableData = data.rows || data.slice(1);
-
-        renderTable();
     });
 }
 
