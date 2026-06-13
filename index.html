@@ -48,39 +48,6 @@
 const API_URL = "https://script.google.com/macros/s/AKfycbxUysWGi4OIOdiuuGi8pk7OUEBFJCkXaItY9bRHpbgRlLFs3EMGJozvYXEQr6ZoEpdM/exec";
 const OMDB_KEY = "2e340492";
 
-/* ---------------- SCOREBOARD AGGREGATION ---------------- */
-
-function processScoreboard(rows) {
-
-    const NAME = 1; // Column B
-    const AVG = 24;  // Column Y
-
-    const map = {};
-
-    for (let i = 1; i < rows.length; i++) {  // ✅ SKIP HEADER ROW
-
-        const r = rows[i];
-
-        const name = r[NAME];
-        const score = parseFloat(r[AVG]);
-
-        if (!name || isNaN(score)) continue;
-
-        if (!map[name]) {
-            map[name] = { total: 0, count: 0 };
-        }
-
-        map[name].total += score;
-        map[name].count += 1;
-    }
-
-    return Object.entries(map).map(([name, obj]) => ({
-        name,
-        avg: obj.total / obj.count
-    }));
-}
-
-
 /* ---------------- NOW SHOWING ---------------- */
 
 fetch(API_URL + "?sheet=" + encodeURIComponent("Current Selections"))
@@ -135,6 +102,7 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Current Selections"))
         const theme = r[1];
         const movie = r[2];
 
+        // skip header row
         if (
             month === "Month" &&
             theme === "Theme" &&
@@ -172,7 +140,7 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Current Selections"))
 });
 
 
-/* ---------------- TOP RATED (FIXED HEADER SKIP) ---------------- */
+/* ---------------- TOP RATED (SORTED HIGH → LOW) ---------------- */
 
 fetch(API_URL + "?sheet=" + encodeURIComponent("Movie Scoreboard"))
 .then(r => r.json())
@@ -186,16 +154,17 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Movie Scoreboard"))
 
     const cache = {};
 
+    const clean = rows
+        .slice(1) // skip header row
+        .filter(r => r[MOVIE] && r[AVG] !== "" && r[AVG] !== undefined)
+        .sort((a, b) => parseFloat(b[AVG]) - parseFloat(a[AVG])); // DESC
+
     let html = "";
 
-    for (let i = 1; i < rows.length; i++) {   // ✅ SKIP HEADER ROW
-
-        const r = rows[i];
+    for (const r of clean) {
 
         const movie = r[MOVIE];
         const avg = r[AVG];
-
-        if (!movie || avg === undefined || avg === "") continue;
 
         let poster = cache[movie];
 
@@ -205,7 +174,10 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Movie Scoreboard"))
                     `https://www.omdbapi.com/?t=${encodeURIComponent(movie)}&apikey=${OMDB_KEY}`
                 ).then(r => r.json());
 
-                poster = (omdb.Poster && omdb.Poster !== "N/A") ? omdb.Poster : "";
+                poster = (omdb.Poster && omdb.Poster !== "N/A")
+                    ? omdb.Poster
+                    : "";
+
                 cache[movie] = poster;
 
             } catch (e) {
@@ -233,8 +205,36 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Movie Scoreboard"))
 
     const rows = data.rows || [];
 
-    const processed = processScoreboard(rows)
-        .sort((a, b) => a.avg - b.avg);
+    const processed = (function(rows) {
+
+        const NAME = 1; // Column B
+        const AVG = 24;  // Column Y
+
+        const map = {};
+
+        for (let i = 1; i < rows.length; i++) {
+
+            const r = rows[i];
+
+            const name = r[NAME];
+            const score = parseFloat(r[AVG]);
+
+            if (!name || isNaN(score)) continue;
+
+            if (!map[name]) {
+                map[name] = { total: 0, count: 0 };
+            }
+
+            map[name].total += score;
+            map[name].count += 1;
+        }
+
+        return Object.entries(map).map(([name, obj]) => ({
+            name,
+            avg: obj.total / obj.count
+        }));
+
+    })(rows).sort((a, b) => a.avg - b.avg);
 
     let html = "";
 
