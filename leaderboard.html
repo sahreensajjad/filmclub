@@ -17,13 +17,12 @@
   </nav>
 </header>
 
-<!-- PICKY LEADERBOARD -->
 <section class="row">
-  <h2>Picky Meter Leaderboard 🧠</h2>
+  <h2>Picky Rating Leaderboard 🧠</h2>
   <div class="grid" id="leaderboard"></div>
 </section>
 
-<!-- HALL OF SHAME (UNCHANGED STYLE FROM INDEX) -->
+<!-- Hall of Shame (UNCHANGED LOGIC STYLE) -->
 <section class="row">
   <h2>Hall of Shame</h2>
   <div class="grid" id="shame"></div>
@@ -33,25 +32,28 @@
 
 const API_URL = "https://script.google.com/macros/s/AKfycbxUysWGi4OIOdiuuGi8pk7OUEBFJCkXaItY9bRHpbgRlLFs3EMGJozvYXEQr6ZoEpdM/exec";
 
-/* ---------------- PICKY CALC ---------------- */
+/* ---------------- PICKY RATING ---------------- */
 
-function computePicky(rows) {
+function computePickyByColumn(rows) {
 
-    const START = 2;  // Column C
-    const END = 23;   // Column X (C=2 if A=0 indexing)
+    const START_COL = 2; // Column C
+    const END_COL = 23;   // Column X
 
-    const people = [];
+    const headers = rows[0];
 
-    for (let i = 1; i < rows.length; i++) { // skip header
+    const results = [];
 
-        const r = rows[i];
+    for (let c = START_COL; c <= END_COL; c++) {
+
+        const name = headers[c];
+        if (!name) continue;
 
         let total = 0;
         let count = 0;
 
-        for (let c = START; c <= END; c++) {
+        for (let r = 1; r < rows.length; r++) {
 
-            const val = parseFloat(r[c]);
+            const val = parseFloat(rows[r][c]);
 
             if (!isNaN(val)) {
                 total += val;
@@ -62,20 +64,19 @@ function computePicky(rows) {
         if (count === 0) continue;
 
         const avg = total / count;
-        const picky = 10 - avg;
+        const pickyRating = 10 - avg;
 
-        people.push({
-            id: i,
-            avg,
-            picky
+        results.push({
+            name,
+            pickyRating
         });
     }
 
-    return people;
+    return results;
 }
 
 
-/* ---------------- PICKY LEADERBOARD ---------------- */
+/* ---------------- LOAD LEADERBOARD ---------------- */
 
 fetch(API_URL + "?sheet=" + encodeURIComponent("Movie Scoreboard"))
 .then(r => r.json())
@@ -84,20 +85,17 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Movie Scoreboard"))
     const rows = data.rows || [];
     const container = document.getElementById("leaderboard");
 
-    const people = computePicky(rows)
-        .sort((a, b) => b.picky - a.picky);
+    const people = computePickyByColumn(rows)
+        .sort((a, b) => b.pickyRating - a.pickyRating);
 
     let html = "";
 
-    people.forEach((p, index) => {
+    people.forEach(p => {
 
         html += `
         <div class="card">
-            <strong>Person ${index + 1}</strong>
-            <small>
-                Picky: ${p.picky.toFixed(2)}<br>
-                Avg: ${p.avg.toFixed(2)}
-            </small>
+            <strong>${p.name}</strong>
+            <small>PickyRating: ${p.pickyRating.toFixed(2)}</small>
         </div>`;
     });
 
@@ -105,7 +103,7 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Movie Scoreboard"))
 });
 
 
-/* ---------------- HALL OF SHAME (COPY INDEX LOGIC EXACTLY) ---------------- */
+/* ---------------- HALL OF SHAME (UNCHANGED STYLE LOGIC) ---------------- */
 
 fetch(API_URL + "?sheet=" + encodeURIComponent("Movie Scoreboard"))
 .then(r => r.json())
