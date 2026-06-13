@@ -1,52 +1,39 @@
-<!DOCTYPE html>
-<html>
-<head>
-<link rel="stylesheet" href="style.css">
-<title>MovieClub</title>
-</head>
-
-<body>
-
-<header class="nav">
-  <h1 class="logo">MovieClub</h1>
-  <nav>
-    <a href="index.html">Home</a>
-    <a href="movies.html">Movie List</a>
-    <a href="suggest.html">Suggest</a>
-    <a href="leaderboard.html">Leaderboard</a>
-  </nav>
-</header>
-
-<!-- HERO -->
-<section class="hero">
-  <div class="hero-content">
-    <h2>Now Showing</h2>
-    <h1 id="current">Loading...</h1>
-  </div>
-</section>
-
-<!-- THEMES -->
-<section class="row">
-  <h2>Monthly Themes</h2>
-  <div id="themes"></div>
-</section>
-
-<!-- TOP RATED -->
-<section class="row">
-  <h2>Top Rated Films</h2>
-  <div class="grid" id="top"></div>
-</section>
-
-<!-- HALL OF SHAME -->
-<section class="row">
-  <h2>Hall of Shame</h2>
-  <div class="grid" id="shame"></div>
-</section>
-
 <script>
 
 const API_URL = "https://script.google.com/macros/s/AKfycbxUysWGi4OIOdiuuGi8pk7OUEBFJCkXaItY9bRHpbgRlLFs3EMGJozvYXEQr6ZoEpdM/exec";
 const OMDB_KEY = "2e340492";
+
+/* ---------------- HELPERS ---------------- */
+
+// Group by NAME (Column B), average Column Y
+function processScoreboard(rows) {
+
+    const NAME = 1; // Column B
+    const AVG = 24;  // Column Y
+
+    const map = {};
+
+    rows.forEach(r => {
+
+        const name = r[NAME];
+        const score = parseFloat(r[AVG]);
+
+        if (!name || isNaN(score)) return;
+
+        if (!map[name]) {
+            map[name] = { total: 0, count: 0 };
+        }
+
+        map[name].total += score;
+        map[name].count += 1;
+    });
+
+    return Object.entries(map).map(([name, obj]) => ({
+        name,
+        avg: obj.total / obj.count
+    }));
+}
+
 
 /* ---------------- NOW SHOWING ---------------- */
 
@@ -102,12 +89,10 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Current Selections"))
         const theme = r[1];
         const movie = r[2];
 
-        // skip header row safely
-        if (
-            month === "Month" &&
-            theme === "Theme" &&
-            movie === "Voted movies"
-        ) continue;
+        // skip header row
+        if (month === "Month" && theme === "Theme" && movie === "Voted movies") {
+            continue;
+        }
 
         if (!theme || !movie) continue;
 
@@ -140,7 +125,7 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Current Selections"))
 });
 
 
-/* ---------------- TOP RATED ---------------- */
+/* ---------------- TOP RATED (AGGREGATED) ---------------- */
 
 fetch(API_URL + "?sheet=" + encodeURIComponent("Movie Scoreboard"))
 .then(r => r.json())
@@ -148,21 +133,17 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Movie Scoreboard"))
 
     const rows = data.rows || [];
 
-    const MOVIE = 0;   // Column A
-    const AVG = 24;    // Column Y
-
-    const sorted = rows
-        .filter(r => r && r[MOVIE] && r[AVG] !== "" && r[AVG] !== undefined)
-        .sort((a, b) => parseFloat(b[AVG]) - parseFloat(a[AVG]));
+    const processed = processScoreboard(rows)
+        .sort((a, b) => b.avg - a.avg); // DESC
 
     let html = "";
 
-    sorted.forEach(r => {
+    processed.forEach(r => {
 
         html += `
         <div class="card">
-            <strong>${r[MOVIE]}</strong>
-            <small>⭐ ${r[AVG]}</small>
+            <strong>${r.name}</strong>
+            <small>⭐ ${r.avg.toFixed(2)}</small>
         </div>`;
     });
 
@@ -170,7 +151,7 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Movie Scoreboard"))
 });
 
 
-/* ---------------- HALL OF SHAME ---------------- */
+/* ---------------- HALL OF SHAME (AGGREGATED) ---------------- */
 
 fetch(API_URL + "?sheet=" + encodeURIComponent("Movie Scoreboard"))
 .then(r => r.json())
@@ -178,21 +159,17 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Movie Scoreboard"))
 
     const rows = data.rows || [];
 
-    const MOVIE = 0;
-    const AVG = 24;
-
-    const sorted = rows
-        .filter(r => r && r[MOVIE] && r[AVG] !== "" && r[AVG] !== undefined)
-        .sort((a, b) => parseFloat(a[AVG]) - parseFloat(b[AVG]));
+    const processed = processScoreboard(rows)
+        .sort((a, b) => a.avg - b.avg); // ASC
 
     let html = "";
 
-    sorted.forEach(r => {
+    processed.forEach(r => {
 
         html += `
         <div class="card">
-            <strong>${r[MOVIE]}</strong>
-            <small>⭐ ${r[AVG]}</small>
+            <strong>${r.name}</strong>
+            <small>⭐ ${r.avg.toFixed(2)}</small>
         </div>`;
     });
 
@@ -200,6 +177,3 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Movie Scoreboard"))
 });
 
 </script>
-
-</body>
-</html>
