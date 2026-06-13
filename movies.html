@@ -42,8 +42,8 @@ fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET_NAME))
 .then(r => r.json())
 .then(data => {
 
-    headers = data[0];
-    tableData = data.slice(1);
+    headers = data.headers;
+    tableData = data.rows;
 
     renderTable();
 });
@@ -56,12 +56,14 @@ function renderTable() {
 
     let html = "<table>";
 
+    // headers
     html += "<tr>";
     for (let i = 0; i < COLS; i++) {
         html += `<th>${headers[i] || ""}</th>`;
     }
     html += "</tr>";
 
+    // rows
     for (let i = 0; i < tableData.length; i++) {
 
         const sheetRow = i + 2;
@@ -107,7 +109,7 @@ function saveCell(row, col, value) {
 }
 
 
-/* ADD ROW (FIXED) */
+/* ADD ROW — FIXED */
 function addRow() {
 
     fetch(API_URL, {
@@ -120,10 +122,22 @@ function addRow() {
             action: "addRow"
         })
     })
+    .then(res => res.json().catch(() => ({})))
     .then(() => {
-        location.reload();
+
+        // refresh table safely without breaking UI
+        fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET_NAME))
+        .then(r => r.json())
+        .then(data => {
+
+            headers = data.headers;
+            tableData = data.rows;
+
+            renderTable();
+        });
+
     })
-    .catch(err => console.error(err));
+    .catch(err => console.error("Add row failed:", err));
 }
 
 </script>
