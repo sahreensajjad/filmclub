@@ -50,7 +50,7 @@ fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET_NAME))
 });
 
 
-/* RENDER TABLE (FIXED ALIGNMENT) */
+/* RENDER TABLE */
 function renderTable() {
 
     const COLS = 6;
@@ -77,7 +77,7 @@ function renderTable() {
 
             html += `
                 <td contenteditable="true"
-                    onblur="saveCell(${sheetRow}, ${j+1}, this.innerText)">
+                    onblur="saveCell(${sheetRow}, ${j + 1}, this.innerText)">
                     ${value}
                 </td>`;
         }
@@ -91,11 +91,14 @@ function renderTable() {
 }
 
 
-/* SAVE CELL (FIXED ROW/COL MAPPING) */
+/* SAVE CELL (FIXED + SAFE) */
 function saveCell(row, col, value) {
 
     fetch(API_URL, {
         method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
         body: JSON.stringify({
             sheet: SHEET_NAME,
             action: "update",
@@ -112,6 +115,9 @@ function addRow() {
 
     fetch(API_URL, {
         method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
         body: JSON.stringify({
             sheet: SHEET_NAME,
             action: "addRow"
