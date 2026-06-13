@@ -38,22 +38,26 @@ let rows = [];
 
 /* ---------------- LOAD ---------------- */
 
-fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET_NAME))
-.then(r => r.json())
-.then(data => {
+function loadData() {
 
-    headers = data.headers || [];
-    rows = data.rows || [];
+    fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET_NAME))
+    .then(r => r.json())
+    .then(data => {
 
-    renderTable();
-});
+        headers = data.headers || [];
+        rows = data.rows || [];
 
+        renderTable();
+    });
+}
+
+loadData();
 
 /* ---------------- RENDER ---------------- */
 
 function renderTable() {
 
-    const COLS = headers.length || 6;
+    const COLS = headers.length || rows[0]?.length || 6;
 
     let html = "<table>";
 
@@ -73,7 +77,7 @@ function renderTable() {
 
         for (let j = 0; j < COLS; j++) {
 
-            const value = rows[i][j] ?? "";
+            const value = rows[i]?.[j] ?? "";
 
             html += `
                 <td contenteditable="true"
@@ -124,16 +128,8 @@ function addRow() {
             sheet: SHEET_NAME,
             action: "addRow"
         })
-    })
-    .then(() => {
-        // reload data properly (not full refresh needed but safe)
-        return fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET_NAME));
-    })
-    .then(r => r.json())
-    .then(data => {
-        headers = data.headers || [];
-        rows = data.rows || [];
-        renderTable();
+    }).then(() => {
+        loadData(); // safe refresh
     });
 }
 
