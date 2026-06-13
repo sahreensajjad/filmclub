@@ -21,6 +21,7 @@
 
   <div class="movie-header">
     <h2>Movie List Editor</h2>
+
     <button onclick="addRow()">➕ Add Row</button>
   </div>
 
@@ -34,42 +35,34 @@ const API_URL = "https://script.google.com/macros/s/AKfycbyB0ggaTr5iGYZhTZ59YcFX
 const SHEET_NAME = "Movie List";
 
 let headers = [];
-let rows = [];
+let tableData = [];
 
-/* ---------------- LOAD ---------------- */
+/* LOAD DATA */
+fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET_NAME))
+.then(r => r.json())
+.then(data => {
 
-function loadData() {
+    headers = data[0];
+    tableData = data.slice(1);
 
-    fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET_NAME))
-    .then(r => r.json())
-    .then(data => {
+    renderTable();
+});
 
-        headers = data.headers || [];
-        rows = data.rows || [];
 
-        renderTable();
-    });
-}
-
-loadData();
-
-/* ---------------- RENDER ---------------- */
-
+/* RENDER TABLE */
 function renderTable() {
 
-    const COLS = headers.length || rows[0]?.length || 6;
+    const COLS = 6;
 
     let html = "<table>";
 
-    // headers
     html += "<tr>";
     for (let i = 0; i < COLS; i++) {
         html += `<th>${headers[i] || ""}</th>`;
     }
     html += "</tr>";
 
-    // rows
-    for (let i = 0; i < rows.length; i++) {
+    for (let i = 0; i < tableData.length; i++) {
 
         const sheetRow = i + 2;
 
@@ -77,7 +70,7 @@ function renderTable() {
 
         for (let j = 0; j < COLS; j++) {
 
-            const value = rows[i]?.[j] ?? "";
+            const value = tableData[i][j] ?? "";
 
             html += `
                 <td contenteditable="true"
@@ -95,8 +88,7 @@ function renderTable() {
 }
 
 
-/* ---------------- SAVE ---------------- */
-
+/* SAVE CELL */
 function saveCell(row, col, value) {
 
     fetch(API_URL, {
@@ -115,8 +107,7 @@ function saveCell(row, col, value) {
 }
 
 
-/* ---------------- ADD ROW ---------------- */
-
+/* ADD ROW (FIXED) */
 function addRow() {
 
     fetch(API_URL, {
@@ -128,9 +119,11 @@ function addRow() {
             sheet: SHEET_NAME,
             action: "addRow"
         })
-    }).then(() => {
-        loadData(); // safe refresh
-    });
+    })
+    .then(() => {
+        location.reload();
+    })
+    .catch(err => console.error(err));
 }
 
 </script>
