@@ -45,7 +45,7 @@
 
 <script>
 
-const API_URL = "https://script.google.com/macros/s/AKfycbyB0ggaTr5iGYZhTZ59YcFXuu6WZTfyNjfd7BE69-WD_zP3qX3MIvLq6MVhpnYV5GtX/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbxBjanagp0ZfI6Wch1iPLiyfg25L2ZXCHNXgNG0xKm5G10TR-2btX1YSm0-Qisi7xVr/exec";
 
 const SHEET_MOVIE_LIST = "Movie List";
 const SHEET_SCOREBOARD = "Movie Scoreboard";
@@ -59,18 +59,18 @@ fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET_CURRENT))
 
     const rows = data.rows || [];
 
-    if (!rows.length) {
+    const last = rows[rows.length - 1];
+
+    if (!last) {
         document.getElementById("current").innerText = "No data";
         return;
     }
 
-    const last = rows[rows.length - 1];
-
-    const colC = last[2];
-    const colD = last[3];
+    const colA = last[0];
+    const colB = last[1];
 
     document.getElementById("current").innerText =
-        colC && colD ? colC + " and " + colD : (colC || colD || "");
+        colA && colB ? colA + " and " + colB : (colA || colB || "");
 });
 
 
