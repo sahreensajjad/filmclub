@@ -21,8 +21,6 @@
 
   <div class="movie-header">
     <h2>Movie List Editor</h2>
-
-    <button onclick="addRow()">➕ Add Row</button>
   </div>
 
   <div id="table-container">Loading...</div>
@@ -31,7 +29,7 @@
 
 <script>
 
-const API_URL = "https://script.google.com/macros/s/AKfycbyB0ggaTr5iGYZhTZ59YcFXuu6WZTfyNjfd7BE69-WD_zP3qX3MIvLq6MVhpnYV5GtX/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbyB0ggaTr5iGYZhTZ59YcFXuu6L2ZXCHNXgNG0xKm5G10TR-2btX1YSm0-Qisi7xVr/exec";
 const SHEET_NAME = "Movie List";
 
 let headers = [];
@@ -42,8 +40,8 @@ fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET_NAME))
 .then(r => r.json())
 .then(data => {
 
-    headers = data[0];
-    tableData = data.slice(1);
+    headers = data.headers || data[0];
+    tableData = data.rows || data.slice(1);
 
     renderTable();
 });
@@ -88,7 +86,7 @@ function renderTable() {
 }
 
 
-/* SAVE CELL */
+/* SAVE CELL + AUTO ROW */
 function saveCell(row, col, value) {
 
     fetch(API_URL, {
@@ -97,19 +95,26 @@ function saveCell(row, col, value) {
             "Content-Type": "application/json"
         },
         body: JSON.stringify({
-        sheet: SHEET_NAME,
-        action: "update",
-        row: row,
-        col: col,
-        value: value,
-        key: "fLimclub"
-    })
+            sheet: SHEET_NAME,
+            action: "update",
+            row: row,
+            col: col,
+            value: value,
+            key: "fLimclub"
+        })
     });
+
+    // detect last row
+    const isLastRow = row === tableData.length + 1;
+
+    if (isLastRow && value.trim() !== "") {
+        addEmptyRow();
+    }
 }
 
 
-/* ADD ROW (FIXED) */
-function addRow() {
+/* ADD NEW EMPTY ROW */
+function addEmptyRow() {
 
     fetch(API_URL, {
         method: "POST",
@@ -118,13 +123,22 @@ function addRow() {
         },
         body: JSON.stringify({
             sheet: SHEET_NAME,
-            action: "addRow"
+            action: "addRow",
+            key: "fLimclub"
         })
     })
     .then(() => {
-        location.reload();
+
+        return fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET_NAME));
     })
-    .catch(err => console.error(err));
+    .then(r => r.json())
+    .then(data => {
+
+        headers = data.headers || data[0];
+        tableData = data.rows || data.slice(1);
+
+        renderTable();
+    });
 }
 
 </script>
