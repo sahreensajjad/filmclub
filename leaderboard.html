@@ -17,66 +17,65 @@
   </nav>
 </header>
 
+<!-- PICKY LEADERBOARD -->
 <section class="row">
   <h2>Picky Meter Leaderboard 🧠</h2>
   <div class="grid" id="leaderboard"></div>
+</section>
+
+<!-- HALL OF SHAME (UNCHANGED STYLE FROM INDEX) -->
+<section class="row">
+  <h2>Hall of Shame</h2>
+  <div class="grid" id="shame"></div>
 </section>
 
 <script>
 
 const API_URL = "https://script.google.com/macros/s/AKfycbxUysWGi4OIOdiuuGi8pk7OUEBFJCkXaItY9bRHpbgRlLFs3EMGJozvYXEQr6ZoEpdM/exec";
 
-/* ---------------- PICKY METER ---------------- */
+/* ---------------- PICKY CALC ---------------- */
 
 function computePicky(rows) {
 
-    const NAME_COL = 1;   // Column B
-    const START = 2;      // Column C
-    const END = 24;       // Column Y
+    const START = 2;  // Column C
+    const END = 23;   // Column X (C=2 if A=0 indexing)
 
-    const map = {};
+    const people = [];
 
     for (let i = 1; i < rows.length; i++) { // skip header
 
         const r = rows[i];
 
-        const name = r[NAME_COL];
-        if (!name) continue;
-
-        if (!map[name]) {
-            map[name] = { total: 0, count: 0 };
-        }
+        let total = 0;
+        let count = 0;
 
         for (let c = START; c <= END; c++) {
 
             const val = parseFloat(r[c]);
 
             if (!isNaN(val)) {
-                map[name].total += val;
-                map[name].count += 1;
+                total += val;
+                count++;
             }
         }
+
+        if (count === 0) continue;
+
+        const avg = total / count;
+        const picky = 10 - avg;
+
+        people.push({
+            id: i,
+            avg,
+            picky
+        });
     }
 
-    return Object.entries(map)
-        .map(([name, obj]) => {
-
-            if (obj.count === 0) return null;
-
-            const avg = obj.total / obj.count;
-            const picky = 10 - avg;
-
-            return {
-                name,
-                avg,
-                picky
-            };
-        })
-        .filter(x => x !== null);
+    return people;
 }
 
 
-/* ---------------- LOAD ---------------- */
+/* ---------------- PICKY LEADERBOARD ---------------- */
 
 fetch(API_URL + "?sheet=" + encodeURIComponent("Movie Scoreboard"))
 .then(r => r.json())
@@ -86,15 +85,15 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Movie Scoreboard"))
     const container = document.getElementById("leaderboard");
 
     const people = computePicky(rows)
-        .sort((a, b) => b.picky - a.picky); // highest picky first
+        .sort((a, b) => b.picky - a.picky);
 
     let html = "";
 
-    people.forEach(p => {
+    people.forEach((p, index) => {
 
         html += `
         <div class="card">
-            <strong>${p.name}</strong>
+            <strong>Person ${index + 1}</strong>
             <small>
                 Picky: ${p.picky.toFixed(2)}<br>
                 Avg: ${p.avg.toFixed(2)}
@@ -103,6 +102,58 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Movie Scoreboard"))
     });
 
     container.innerHTML = html;
+});
+
+
+/* ---------------- HALL OF SHAME (COPY INDEX LOGIC EXACTLY) ---------------- */
+
+fetch(API_URL + "?sheet=" + encodeURIComponent("Movie Scoreboard"))
+.then(r => r.json())
+.then(data => {
+
+    const rows = data.rows || [];
+
+    const NAME = 1; // Column B
+    const AVG = 24; // Column Y
+
+    const map = {};
+
+    for (let i = 1; i < rows.length; i++) {
+
+        const r = rows[i];
+
+        const name = r[NAME];
+        const score = parseFloat(r[AVG]);
+
+        if (!name || isNaN(score)) continue;
+
+        if (!map[name]) {
+            map[name] = { total: 0, count: 0 };
+        }
+
+        map[name].total += score;
+        map[name].count += 1;
+    }
+
+    const processed = Object.entries(map)
+        .map(([name, obj]) => ({
+            name,
+            avg: obj.total / obj.count
+        }))
+        .sort((a, b) => a.avg - b.avg);
+
+    let html = "";
+
+    processed.forEach(r => {
+
+        html += `
+        <div class="card">
+            <strong>${r.name}</strong>
+            <small>⭐ ${r.avg.toFixed(2)}</small>
+        </div>`;
+    });
+
+    document.getElementById("shame").innerHTML = html;
 });
 
 </script>
