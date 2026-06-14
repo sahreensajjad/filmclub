@@ -27,41 +27,36 @@ const WRITE_KEY = "fLimclub";
 const COLS = 6;
 let headers = [];
 let tableData = [];
+let nextSheetRow = 2; // tracks the next available sheet row
 
 /* LOAD DATA */
 fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET_NAME))
     .then(r => r.json())
     .then(data => {
-        console.log("API response:", JSON.stringify(data));
-
         if (Array.isArray(data)) {
             headers = data[0] || [];
             tableData = data.slice(1);
         } else if (data.headers && data.rows) {
             headers = data.headers;
             tableData = data.rows;
-        } else {
-            console.error("Unexpected response shape:", data);
         }
 
-        // ✅ Strip trailing empty rows so row numbers stay accurate
+        // Strip trailing empty rows
         while (tableData.length > 0) {
             const last = tableData[tableData.length - 1];
-            if (last.every(cell => cell === "" || cell === null || (typeof cell === "string" && cell.trim() === ""))) {
+            if (last.every(c => c === "" || c === null || String(c).trim() === "")) {
                 tableData.pop();
-            } else {
-                break;
-            }
+            } else break;
         }
 
-        console.log("Clean row count:", tableData.length, "— next new row will be sheet row", tableData.length + 2);
+        // Row 1 = headers, rows start at 2
+        nextSheetRow = tableData.length + 2;
+        console.log("Loaded", tableData.length, "rows. Next sheet row:", nextSheetRow);
         renderTable();
     });
 
 /* RENDER TABLE */
 function renderTable() {
-    const container = document.getElementById("table-container");
-
     let html = "<table><tr>";
     for (let i = 0; i < COLS; i++) {
         html += `<th>${headers[i] || ""}</th>`;
@@ -69,90 +64,81 @@ function renderTable() {
     html += "</tr>";
 
     for (let i = 0; i < tableData.length; i++) {
-        html += buildRow(i, i + 2);
+        const sheetRow = i + 2;
+        html += `<tr data-sheet-row="${sheetRow}">`;
+        for (let j = 0; j < COLS; j++) {
+            const value = tableData[i][j] ?? "";
+            html += `<td contenteditable="true">${value}</td>`;
+        }
+        html += "</tr>";
     }
 
     html += buildGhostRow();
     html += "</table>";
+
+    const container = document.getElementById("table-container");
     container.innerHTML = html;
+
+    // Attach blur listeners to all real rows
+    container.querySelectorAll("tr[data-sheet-row]").forEach(row => {
+        row.querySelectorAll("td").forEach((td, j) => {
+            td.addEventListener("blur", () => {
+                const r = parseInt(row.dataset.sheetRow);
+                const c = j + 1;
+                const v = td.innerText.trim();
+                if (v) saveCell(r, c, v);
+            });
+        });
+    });
+
+    // Attach ghost row listeners
+    attachGhostListeners(container.querySelector("tr.ghost-row"));
 }
 
-/* BUILD A DATA ROW */
-function buildRow(dataIndex, sheetRow) {
-    let html = "<tr>";
-    for (let j = 0; j < COLS; j++) {
-        const value = tableData[dataIndex]?.[j] ?? "";
-        html += `<td contenteditable="true"
-            onblur="saveCell(${sheetRow}, ${j + 1}, this.innerText)">${value}</td>`;
-    }
-    return html + "</tr>";
-}
-
-/* BUILD THE EMPTY GHOST ROW */
+/* BUILD GHOST ROW */
 function buildGhostRow() {
     return `<tr class="ghost-row">${
-        Array(COLS).fill(0).map(() =>
-            `<td contenteditable="true" oninput="onGhostInput(this)" onblur="onGhostBlur(this)"></td>`
-        ).join("")
+        Array(COLS).fill(`<td contenteditable="true"></td>`).join("")
     }</tr>`;
 }
 
-/* FIRES ON FIRST KEYSTROKE — promote row visually only, no sheet write yet */
-function onGhostInput(cell) {
-    const ghostRow = cell.closest("tr");
-    if (!ghostRow.classList.contains("ghost-row")) return;
+/* ATTACH LISTENERS TO A GHOST ROW */
+function attachGhostListeners(ghostRow) {
+    if (!ghostRow) return;
+    let promoted = false;
+    let sheetRow = null;
 
-    ghostRow.classList.remove("ghost-row");
+    ghostRow.querySelectorAll("td").forEach((td, j) => {
+        // On first input, promote the row
+        td.addEventListener("input", () => {
+            if (promoted) return;
+            promoted = true;
+            sheetRow = nextSheetRow++;
+            ghostRow.classList.remove("ghost-row");
+            ghostRow.dataset.sheetRow = sheetRow;
+            console.log("Promoted ghost to sheet row", sheetRow);
 
-    const newSheetRow = tableData.length + 2;
-    tableData.push(Array(COLS).fill(""));
-    ghostRow.dataset.sheetRow = newSheetRow;
-    ghostRow.dataset.pending = "true";
+            // Add a new ghost row
+            const newGhost = document.createElement("tr");
+            newGhost.classList.add("ghost-row");
+            newGhost.innerHTML = Array(COLS).fill(`<td contenteditable="true"></td>`).join("");
+            ghostRow.closest("table").appendChild(newGhost);
+            attachGhostListeners(newGhost);
 
-    console.log("Ghost promoted — will write to sheet row", newSheetRow);
-
-    ghostRow.querySelectorAll("td").forEach((td) => {
-        td.removeAttribute("oninput");
-    });
-
-    // Add a fresh ghost row below
-    const newGhost = document.createElement("tr");
-    newGhost.classList.add("ghost-row");
-    newGhost.innerHTML = Array(COLS).fill(0).map(() =>
-        `<td contenteditable="true" oninput="onGhostInput(this)" onblur="onGhostBlur(this)"></td>`
-    ).join("");
-    ghostRow.closest("table").appendChild(newGhost);
-}
-
-/* FIRES WHEN USER LEAVES A CELL IN A PROMOTED ROW */
-function onGhostBlur(cell) {
-    const row = cell.closest("tr");
-    if (!row.dataset.sheetRow) return;
-
-    const sheetRow = parseInt(row.dataset.sheetRow);
-    const col = Array.from(row.children).indexOf(cell) + 1;
-    const value = cell.innerText.trim();
-
-    if (row.dataset.pending === "true") {
-        row.dataset.pending = "false";
-
-        // Re-wire all cells to normal saveCell immediately
-        row.querySelectorAll("td").forEach((td, j) => {
-            td.removeAttribute("onblur");
-            td.setAttribute("onblur", `saveCell(${sheetRow}, ${j + 1}, this.innerText)`);
+            // Tell the sheet to append a row
+            postToSheet({ sheet: SHEET_NAME, action: "addRow", key: WRITE_KEY })
+                .then(() => console.log("addRow confirmed for sheet row", sheetRow));
         });
 
-        // ✅ addRow first, then save cell — but handle non-JSON "ok" response gracefully
-        postToSheet({ sheet: SHEET_NAME, action: "addRow", key: WRITE_KEY })
-            .then(() => {
-                if (value) {
-                    console.log("addRow done, now saving cell — row:", sheetRow, "col:", col, "value:", value);
-                    saveCell(sheetRow, col, value);
-                }
-            });
-    } else {
-        if (value) saveCell(sheetRow, col, value);
-    }
+        // On blur, save the cell
+        td.addEventListener("blur", () => {
+            if (!promoted || !sheetRow) return;
+            const col = j + 1;
+            const value = td.innerText.trim();
+            console.log("Ghost blur — row:", sheetRow, "col:", col, "value:", value);
+            if (value) saveCell(sheetRow, col, value);
+        });
+    });
 }
 
 /* SAVE CELL */
@@ -168,7 +154,7 @@ function saveCell(row, col, value) {
     });
 }
 
-/* CENTRAL POST HELPER — handles both JSON and plain text responses */
+/* POST HELPER */
 function postToSheet(body) {
     return fetch(API_URL, {
         method: "POST",
@@ -176,16 +162,9 @@ function postToSheet(body) {
         headers: { "Content-Type": "text/plain" },
         body: JSON.stringify(body)
     })
-    .then(r => r.text()) // ✅ Use text() not json() — GAS sometimes returns plain "ok"
+    .then(r => r.text())
     .then(text => {
-        console.log("POST raw response:", text);
-        try {
-            const res = JSON.parse(text);
-            if (res.error) console.error("Sheet error:", res.error);
-        } catch(e) {
-            // Plain text response like "ok" is fine, just log it
-            console.log("POST response (plain text):", text);
-        }
+        console.log("POST response:", text);
     })
     .catch(err => console.error("POST failed:", err));
 }
