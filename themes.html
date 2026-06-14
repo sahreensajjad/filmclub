@@ -21,25 +21,19 @@
 <div id="key-overlay" style="
     position:fixed; inset:0; background:rgba(0,0,0,0.85);
     display:flex; align-items:center; justify-content:center; z-index:999;">
-    
-    <div style="background:#1a1a1a; border:1px solid #333; border-radius:8px; padding:32px; text-align:center; min-width:300px;">
-        <h2 style="color:#fff; margin:0 0 8px;">Enter Edit Key</h2>
-        <p style="color:#888; margin:0 0 20px; font-size:14px;">Required to edit themes</p>
+
+    <div style="background:#1a1a1a; padding:30px; border-radius:8px; text-align:center; min-width:300px;">
+        <h2 style="color:#fff;">Enter Edit Key</h2>
 
         <input id="key-input" type="password"
-            style="width:100%; padding:10px; border-radius:4px; border:1px solid #444;
-                   background:#111; color:#fff; margin-bottom:12px;"
-            onkeydown="if(event.key==='Enter') submitKey()">
+            style="width:100%; padding:10px; margin-top:10px;">
 
-        <button onclick="submitKey()" style="
-            width:100%; padding:10px; background:#e50914; color:#fff;
-            border:none; border-radius:4px; cursor:pointer;">
+        <button onclick="submitKey()"
+            style="width:100%; margin-top:10px; padding:10px; background:red; color:white;">
             Unlock
         </button>
 
-        <p id="key-error" style="color:#e50914; display:none; margin-top:10px;">
-            Incorrect key
-        </p>
+        <p id="key-error" style="color:red; display:none;">Wrong key</p>
     </div>
 </div>
 
@@ -54,6 +48,7 @@ const API_URL = "https://script.google.com/macros/s/AKfycbyi8gzf6WY_BrCIQhd0DOM0
 const SHEET_NAME = "Themes";
 
 let WRITE_KEY = null;
+let headers = [];
 let tableData = [];
 
 /* ---------------- KEY ---------------- */
@@ -62,7 +57,7 @@ function submitKey() {
 
     fetch(API_URL, {
         method: "POST",
-        headers: { "Content-Type": "text/plain" },
+        headers: {"Content-Type": "text/plain"},
         body: JSON.stringify({
             sheet: SHEET_NAME,
             action: "verify",
@@ -70,15 +65,7 @@ function submitKey() {
         })
     })
     .then(r => r.text())
-    .then(res => {
-        try {
-            const json = JSON.parse(res);
-            if (json.error === "Unauthorized") {
-                document.getElementById("key-error").style.display = "block";
-                return;
-            }
-        } catch(e) {}
-
+    .then(() => {
         WRITE_KEY = key;
         document.getElementById("key-overlay").style.display = "none";
     })
@@ -93,22 +80,14 @@ function loadData() {
     fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET_NAME))
     .then(r => r.json())
     .then(data => {
-        tableData = data.rows || [];
-        renderTable();
-    });
-}
 
-/* ---------------- REALTIME REFRESH ---------------- */
-function refreshData() {
-    fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET_NAME))
-    .then(r => r.json())
-    .then(data => {
-        const newData = data.rows || [];
-
-        if (JSON.stringify(newData) !== JSON.stringify(tableData)) {
-            tableData = newData;
-            renderTable();
+        if (data.rows) {
+            tableData = data.rows;
+        } else if (Array.isArray(data)) {
+            tableData = data.slice(1);
         }
+
+        renderTable();
     });
 }
 
@@ -119,91 +98,46 @@ function renderTable() {
 
     for (let i = 0; i < tableData.length; i++) {
 
-        const value = tableData[i][0] ?? "";
         const sheetRow = i + 2;
+        const value = tableData[i][0] ?? "";
 
         html += `
-            <tr data-row="${sheetRow}">
-                <td contenteditable="true">${value}</td>
+            <tr>
+                <td contenteditable="true"
+                    onblur="saveCell(${sheetRow}, 1, this.innerText)">
+                    ${value}
+                </td>
             </tr>
         `;
     }
 
-    /* ghost row */
-    html += `
-        <tr class="ghost">
-            <td contenteditable="true"></td>
-        </tr>
-    `;
-
     html += "</table>";
 
-    const container = document.getElementById("table-container");
-    container.innerHTML = html;
-
-    /* SAVE EXISTING ROWS */
-    container.querySelectorAll("tr[data-row]").forEach(tr => {
-        const td = tr.querySelector("td");
-
-        td.addEventListener("blur", () => {
-            const value = td.innerText.trim();
-            saveCell(tr.dataset.row, 1, value);
-        });
-    });
-
-    /* GHOST ROW */
-    const ghost = container.querySelector(".ghost td");
-
-    let promoted = false;
-    let rowId = null;
-
-    ghost.addEventListener("input", () => {
-        if (promoted) return;
-        promoted = true;
-
-        rowId = tableData.length + 2;
-
-        postToSheet({
-            sheet: SHEET_NAME,
-            action: "addRow",
-            key: WRITE_KEY
-        });
-
-        const tr = ghost.parentElement;
-        tr.dataset.row = rowId;
-        tr.classList.remove("ghost");
-
-        const newGhost = document.createElement("tr");
-        newGhost.className = "ghost";
-        newGhost.innerHTML = `<td contenteditable="true"></td>`;
-        tr.parentElement.appendChild(newGhost);
-    });
+    document.getElementById("table-container").innerHTML = html;
 }
 
 /* ---------------- SAVE ---------------- */
 function saveCell(row, col, value) {
-    postToSheet({
-        sheet: SHEET_NAME,
-        action: "update",
-        row,
-        col,
-        value,
-        key: WRITE_KEY
-    });
-}
 
-/* ---------------- POST ---------------- */
-function postToSheet(body) {
-    return fetch(API_URL, {
+    fetch(API_URL, {
         method: "POST",
-        headers: { "Content-Type": "text/plain" },
-        body: JSON.stringify(body)
-    }).then(r => r.text());
+        headers: {"Content-Type": "text/plain"},
+        body: JSON.stringify({
+            sheet: SHEET_NAME,
+            action: "update",
+            row,
+            col,
+            value,
+            key: WRITE_KEY
+        })
+    });
 }
 
 /* ---------------- START ---------------- */
 loadData();
-setInterval(refreshData, 3000);
+
+/* optional light refresh (safe) */
+setInterval(loadData, 5000);
 
 </script>
 
