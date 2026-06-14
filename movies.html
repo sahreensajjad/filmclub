@@ -34,7 +34,6 @@ fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET_NAME))
     .then(data => {
         console.log("API response:", JSON.stringify(data));
 
-        // Handle both shapes: flat 2D array OR { headers, rows }
         if (Array.isArray(data)) {
             headers = data[0] || [];
             tableData = data.slice(1);
@@ -95,13 +94,11 @@ function onGhostInput(cell) {
     const newSheetRow = tableData.length + 2;
     tableData.push(Array(COLS).fill(""));
 
-    // Re-wire cells with save handlers
     ghostRow.querySelectorAll("td").forEach((td, j) => {
         td.removeAttribute("oninput");
         td.setAttribute("onblur", `saveCell(${newSheetRow}, ${j + 1}, this.innerText)`);
     });
 
-    // Append a fresh ghost row
     const newGhost = document.createElement("tr");
     newGhost.classList.add("ghost-row");
     newGhost.innerHTML = Array(COLS).fill(0).map(() =>
@@ -109,28 +106,35 @@ function onGhostInput(cell) {
     ).join("");
     ghostRow.closest("table").appendChild(newGhost);
 
-    // Tell the sheet to append a new row (with key)
-    fetch(API_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sheet: SHEET_NAME, action: "addRow", key: WRITE_KEY })
-    }).catch(err => console.error(err));
+    postToSheet({ sheet: SHEET_NAME, action: "addRow", key: WRITE_KEY });
 }
 
 /* SAVE CELL */
 function saveCell(row, col, value) {
-    fetch(API_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-            sheet: SHEET_NAME,
-            action: "update",
-            row: row,
-            col: col,
-            value: value,
-            key: WRITE_KEY
-        })
+    postToSheet({
+        sheet: SHEET_NAME,
+        action: "update",
+        row: row,
+        col: col,
+        value: value,
+        key: WRITE_KEY
     });
+}
+
+/* ✅ CENTRAL POST HELPER — redirect:follow fixes Google Apps Script silently dropping POSTs */
+function postToSheet(body) {
+    return fetch(API_URL, {
+        method: "POST",
+        redirect: "follow",
+        headers: { "Content-Type": "text/plain" }, // ✅ Avoids CORS preflight which also breaks GAS
+        body: JSON.stringify(body)
+    })
+    .then(r => r.json())
+    .then(res => {
+        console.log("POST response:", res);
+        if (res.error) console.error("Sheet error:", res.error);
+    })
+    .catch(err => console.error("POST failed:", err));
 }
 </script>
 </body>
