@@ -32,9 +32,19 @@ let tableData = [];
 fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET_NAME))
     .then(r => r.json())
     .then(data => {
-        // ✅ Handle the { headers, rows } response shape from your Apps Script
-        headers = data.headers || [];
-        tableData = data.rows || [];
+        console.log("API response:", JSON.stringify(data));
+
+        // Handle both shapes: flat 2D array OR { headers, rows }
+        if (Array.isArray(data)) {
+            headers = data[0] || [];
+            tableData = data.slice(1);
+        } else if (data.headers && data.rows) {
+            headers = data.headers;
+            tableData = data.rows;
+        } else {
+            console.error("Unexpected response shape:", data);
+        }
+
         renderTable();
     });
 
@@ -99,7 +109,7 @@ function onGhostInput(cell) {
     ).join("");
     ghostRow.closest("table").appendChild(newGhost);
 
-    // ✅ Include key so doPost authorises the addRow
+    // Tell the sheet to append a new row (with key)
     fetch(API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
