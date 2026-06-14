@@ -195,7 +195,7 @@ function attachGhostListeners(ghostRow) {
 
         td.addEventListener("blur", () => {
             if (!promoted || !sheetRow) return;
-            const col = j + 1;
+            const col = j;
             const value = td.innerText.trim();
             if (!value) return;
 
