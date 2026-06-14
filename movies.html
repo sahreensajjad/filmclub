@@ -23,6 +23,7 @@
 <script>
 const API_URL = "https://script.google.com/macros/s/AKfycbyB0ggaTr5iGYZhTZ59YcFXuu6WZTfyNjfd7BE69-WD_zP3qX3MIvLq6MVhpnYV5GtX/exec";
 const SHEET_NAME = "Movie List";
+const WRITE_KEY = "fLimclub";
 const COLS = 6;
 let headers = [];
 let tableData = [];
@@ -31,8 +32,9 @@ let tableData = [];
 fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET_NAME))
     .then(r => r.json())
     .then(data => {
-        headers = data[0];
-        tableData = data.slice(1);
+        // ✅ Handle the { headers, rows } response shape from your Apps Script
+        headers = data.headers || [];
+        tableData = data.rows || [];
         renderTable();
     });
 
@@ -40,8 +42,7 @@ fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET_NAME))
 function renderTable() {
     const container = document.getElementById("table-container");
 
-    let html = "<table>";
-    html += "<tr>";
+    let html = "<table><tr>";
     for (let i = 0; i < COLS; i++) {
         html += `<th>${headers[i] || ""}</th>`;
     }
@@ -51,7 +52,6 @@ function renderTable() {
         html += buildRow(i, i + 2);
     }
 
-    // Always append one empty "ghost" row at the bottom
     html += buildGhostRow();
     html += "</table>";
     container.innerHTML = html;
@@ -65,53 +65,45 @@ function buildRow(dataIndex, sheetRow) {
         html += `<td contenteditable="true"
             onblur="saveCell(${sheetRow}, ${j + 1}, this.innerText)">${value}</td>`;
     }
-    html += "</tr>";
-    return html;
+    return html + "</tr>";
 }
 
 /* BUILD THE EMPTY GHOST ROW */
 function buildGhostRow() {
-    let html = `<tr class="ghost-row">`;
-    for (let j = 0; j < COLS; j++) {
-        html += `<td contenteditable="true" oninput="onGhostInput(this)"></td>`;
-    }
-    html += "</tr>";
-    return html;
+    return `<tr class="ghost-row">${
+        Array(COLS).fill(0).map(() =>
+            `<td contenteditable="true" oninput="onGhostInput(this)"></td>`
+        ).join("")
+    }</tr>`;
 }
 
 /* CALLED WHEN USER TYPES INTO THE GHOST ROW */
 function onGhostInput(cell) {
     const ghostRow = cell.closest("tr");
-
-    // Promote ghost row: remove ghost class and wire up save handlers
     ghostRow.classList.remove("ghost-row");
-    const newDataIndex = tableData.length;
-    const newSheetRow = newDataIndex + 2;
 
-    // Push a blank entry into tableData so indices stay aligned
+    const newSheetRow = tableData.length + 2;
     tableData.push(Array(COLS).fill(""));
 
-    // Re-wire each cell in the now-real row
-    const cells = ghostRow.querySelectorAll("td");
-    cells.forEach((td, j) => {
+    // Re-wire cells with save handlers
+    ghostRow.querySelectorAll("td").forEach((td, j) => {
         td.removeAttribute("oninput");
         td.setAttribute("onblur", `saveCell(${newSheetRow}, ${j + 1}, this.innerText)`);
     });
 
-    // Add a fresh ghost row below
-    const table = ghostRow.closest("table");
+    // Append a fresh ghost row
     const newGhost = document.createElement("tr");
     newGhost.classList.add("ghost-row");
     newGhost.innerHTML = Array(COLS).fill(0).map(() =>
         `<td contenteditable="true" oninput="onGhostInput(this)"></td>`
     ).join("");
-    table.appendChild(newGhost);
+    ghostRow.closest("table").appendChild(newGhost);
 
-    // Tell the sheet to append a new row
+    // ✅ Include key so doPost authorises the addRow
     fetch(API_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sheet: SHEET_NAME, action: "addRow" })
+        body: JSON.stringify({ sheet: SHEET_NAME, action: "addRow", key: WRITE_KEY })
     }).catch(err => console.error(err));
 }
 
@@ -126,7 +118,7 @@ function saveCell(row, col, value) {
             row: row,
             col: col,
             value: value,
-            key: "fLimclub"
+            key: WRITE_KEY
         })
     });
 }
