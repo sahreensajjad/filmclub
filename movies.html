@@ -6,7 +6,7 @@
 </head>
 <body>
 <header class="nav">
-    <h1 class="logo">Fil Club 🎬</h1>
+    <h1 class="logo">Film Club 🎬</h1>
     <nav>
         <a href="index.html">Home</a>
         <a href="movies.html">Movie List</a>
@@ -141,7 +141,7 @@ function renderTable() {
                 const r = parseInt(row.dataset.sheetRow);
                 const c = j + 1;
                 const v = td.innerText.trim();
-                if (v) saveCell(r, c, v);
+                saveCell(r, c, v);
             });
         });
     });
