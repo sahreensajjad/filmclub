@@ -16,13 +16,69 @@
 </header>
 
 <div id="key-overlay" style="
-    position:fixed; inset:0; background:rgba(0,0,0,0.85);
-    display:flex; align-items:center; justify-content:center; z-index:999;">
-    <div style="background:#1a1a1a; border:1px solid #333; border-radius:8px; padding:32px; text-align:center; min-width:300px;">
-        <h2 style="color:#fff;">Enter Edit Key</h2>
-        <input id="key-input" type="password" style="width:100%; padding:10px;">
-        <button onclick="submitKey()" style="margin-top:10px;">Unlock</button>
-        <p id="key-error" style="color:red; display:none;">Wrong key</p>
+    position:fixed; inset:0;
+    background:rgba(0,0,0,0.85);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    z-index:999;
+">
+    <div style="
+        background:#1a1a1a;
+        border:1px solid #333;
+        border-radius:8px;
+        padding:32px;
+        text-align:center;
+        min-width:300px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+    ">
+        <h2 style="color:#fff; margin:0 0 8px;">Enter Edit Key</h2>
+
+        <p style="color:#888; margin:0 0 20px; font-size:14px;">
+            Required to make changes to the sheet
+        </p>
+
+        <input id="key-input" type="password" placeholder="Enter key..."
+            style="
+                width:100%;
+                padding:10px;
+                border-radius:4px;
+                border:1px solid #444;
+                background:#111;
+                color:#fff;
+                font-size:16px;
+                box-sizing:border-box;
+                margin-bottom:12px;
+                outline:none;
+            "
+            onkeydown="if(event.key==='Enter') submitKey()"
+        >
+
+        <button onclick="submitKey()" style="
+            width:100%;
+            padding:10px;
+            background:#e50914;
+            color:#fff;
+            border:none;
+            border-radius:4px;
+            font-size:16px;
+            cursor:pointer;
+            transition:0.2s;
+        "
+        onmouseover="this.style.opacity=0.85"
+        onmouseout="this.style.opacity=1"
+        >
+            Unlock
+        </button>
+
+        <p id="key-error" style="
+            color:#e50914;
+            margin:10px 0 0;
+            font-size:13px;
+            display:none;
+        ">
+            Incorrect key, try again.
+        </p>
     </div>
 </div>
 
