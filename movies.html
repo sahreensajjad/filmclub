@@ -6,7 +6,7 @@
 </head>
 <body>
 <header class="nav">
-    <h1 class="logo">MovieClub</h1>
+    <h1 class="logo">Fil Club 🎬</h1>
     <nav>
         <a href="index.html">Home</a>
         <a href="movies.html">Movie List</a>
@@ -16,7 +16,7 @@
 </header>
 <section class="row">
     <div class="movie-header">
-        <h2>Movie List Editor</h2>
+        <h2>Movie List</h2>
     </div>
     <div id="table-container">Loading...</div>
 </section>
@@ -133,7 +133,7 @@ function attachGhostListeners(ghostRow) {
         // On blur, save the cell
         td.addEventListener("blur", () => {
             if (!promoted || !sheetRow) return;
-            const col = j + 1;
+            const col = j;
             const value = td.innerText.trim();
             console.log("Ghost blur — row:", sheetRow, "col:", col, "value:", value);
             if (value) saveCell(sheetRow, col, value);
