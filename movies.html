@@ -81,32 +81,65 @@ function buildRow(dataIndex, sheetRow) {
 function buildGhostRow() {
     return `<tr class="ghost-row">${
         Array(COLS).fill(0).map(() =>
-            `<td contenteditable="true" oninput="onGhostInput(this)"></td>`
+            `<td contenteditable="true" oninput="onGhostInput(this)" onblur="onGhostBlur(this)"></td>`
         ).join("")
     }</tr>`;
 }
 
-/* CALLED WHEN USER TYPES INTO THE GHOST ROW */
+/* FIRES ON FIRST KEYSTROKE — promotes the row and adds a new ghost, but does NOT write to sheet yet */
 function onGhostInput(cell) {
     const ghostRow = cell.closest("tr");
+
+    // Only promote once
+    if (!ghostRow.classList.contains("ghost-row")) return;
     ghostRow.classList.remove("ghost-row");
+    ghostRow.dataset.pending = "true"; // Mark as needing addRow on first blur
 
     const newSheetRow = tableData.length + 2;
     tableData.push(Array(COLS).fill(""));
+    ghostRow.dataset.sheetRow = newSheetRow;
 
-    ghostRow.querySelectorAll("td").forEach((td, j) => {
+    // Re-wire all cells: keep onblur as ghostBlur until row is committed
+    ghostRow.querySelectorAll("td").forEach((td) => {
         td.removeAttribute("oninput");
-        td.setAttribute("onblur", `saveCell(${newSheetRow}, ${j + 1}, this.innerText)`);
     });
 
+    // Append a fresh ghost row below
     const newGhost = document.createElement("tr");
     newGhost.classList.add("ghost-row");
     newGhost.innerHTML = Array(COLS).fill(0).map(() =>
-        `<td contenteditable="true" oninput="onGhostInput(this)"></td>`
+        `<td contenteditable="true" oninput="onGhostInput(this)" onblur="onGhostBlur(this)"></td>`
     ).join("");
     ghostRow.closest("table").appendChild(newGhost);
+}
 
-    postToSheet({ sheet: SHEET_NAME, action: "addRow", key: WRITE_KEY });
+/* FIRES WHEN USER LEAVES A CELL IN A PENDING ROW */
+function onGhostBlur(cell) {
+    const row = cell.closest("tr");
+    const sheetRow = parseInt(row.dataset.sheetRow);
+    const col = Array.from(row.children).indexOf(cell) + 1;
+    const value = cell.innerText.trim();
+
+    if (!value) return; // Don't save empty cells
+
+    // First blur on this row: append the row to the sheet first, then save the cell
+    if (row.dataset.pending === "true") {
+        row.dataset.pending = "false";
+
+        postToSheet({ sheet: SHEET_NAME, action: "addRow", key: WRITE_KEY })
+            .then(() => {
+                // Now save the actual cell value into the correct position
+                if (value) saveCell(sheetRow, col, value);
+            });
+
+        // Re-wire remaining cells to normal saveCell now that row exists
+        row.querySelectorAll("td").forEach((td, j) => {
+            td.removeAttribute("onblur");
+            td.setAttribute("onblur", `saveCell(${sheetRow}, ${j + 1}, this.innerText)`);
+        });
+    } else {
+        saveCell(sheetRow, col, value);
+    }
 }
 
 /* SAVE CELL */
@@ -121,12 +154,12 @@ function saveCell(row, col, value) {
     });
 }
 
-/* ✅ CENTRAL POST HELPER — redirect:follow fixes Google Apps Script silently dropping POSTs */
+/* CENTRAL POST HELPER */
 function postToSheet(body) {
     return fetch(API_URL, {
         method: "POST",
         redirect: "follow",
-        headers: { "Content-Type": "text/plain" }, // ✅ Avoids CORS preflight which also breaks GAS
+        headers: { "Content-Type": "text/plain" },
         body: JSON.stringify(body)
     })
     .then(r => r.json())
