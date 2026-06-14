@@ -8,7 +8,7 @@
 <body>
 
 <header class="nav">
-    <h1 class="logo">Fil Club 🎬</h1>
+    <h1 class="logo">Film Club 🎬</h1>
     <nav>
         <a href="index.html">Home</a>
         <a href="movies.html">Movie List</a>
@@ -19,54 +19,32 @@
 
 <!-- KEY OVERLAY -->
 <div id="key-overlay" style="
-    position:fixed; inset:0;
-    background:rgba(0,0,0,0.85);
-    display:flex; align-items:center; justify-content:center;
-    z-index:999;
-">
-    <div style="
-        background:#1a1a1a;
-        border:1px solid #333;
-        border-radius:8px;
-        padding:32px;
-        text-align:center;
-        min-width:300px;
-    ">
+    position:fixed; inset:0; background:rgba(0,0,0,0.85);
+    display:flex; align-items:center; justify-content:center; z-index:999;">
+    
+    <div style="background:#1a1a1a; border:1px solid #333; border-radius:8px; padding:32px; text-align:center; min-width:300px;">
         <h2 style="color:#fff; margin:0 0 8px;">Enter Edit Key</h2>
+        <p style="color:#888; margin:0 0 20px; font-size:14px;">Required to edit themes</p>
 
-        <p style="color:#888; margin:0 0 20px; font-size:14px;">
-            Required to edit themes
-        </p>
-
-        <input id="key-input" type="password" placeholder="Enter key..."
+        <input id="key-input" type="password"
             style="width:100%; padding:10px; border-radius:4px; border:1px solid #444;
-                   background:#111; color:#fff; font-size:16px; box-sizing:border-box; margin-bottom:12px;"
+                   background:#111; color:#fff; margin-bottom:12px;"
             onkeydown="if(event.key==='Enter') submitKey()">
 
         <button onclick="submitKey()" style="
-            width:100%;
-            padding:10px;
-            background:#e50914;
-            color:#fff;
-            border:none;
-            border-radius:4px;
-            font-size:16px;
-            cursor:pointer;">
+            width:100%; padding:10px; background:#e50914; color:#fff;
+            border:none; border-radius:4px; cursor:pointer;">
             Unlock
         </button>
 
-        <p id="key-error" style="color:#e50914; margin:10px 0 0; font-size:13px; display:none;">
+        <p id="key-error" style="color:#e50914; display:none; margin-top:10px;">
             Incorrect key
         </p>
     </div>
 </div>
 
-<!-- PAGE -->
 <section class="row">
-    <div class="movie-header">
-        <h2>Themes</h2>
-    </div>
-
+    <h2>Themes</h2>
     <div id="table-container">Loading...</div>
 </section>
 
@@ -74,14 +52,13 @@
 
 const API_URL = "https://script.google.com/macros/s/AKfycbyi8gzf6WY_BrCIQhd0DOM0qwPP17MjEe2V1BaVxidpo5EvMqgLWjkK38MLFX6zkiFF/exec";
 const SHEET_NAME = "Themes";
-const COLS = 1;
 
 let WRITE_KEY = null;
 let tableData = [];
 
 /* ---------------- KEY ---------------- */
 function submitKey() {
-    const input = document.getElementById("key-input").value.trim();
+    const key = document.getElementById("key-input").value.trim();
 
     fetch(API_URL, {
         method: "POST",
@@ -89,16 +66,24 @@ function submitKey() {
         body: JSON.stringify({
             sheet: SHEET_NAME,
             action: "verify",
-            key: input
+            key
         })
     })
     .then(r => r.text())
-    .then(() => {
-        WRITE_KEY = input;
+    .then(res => {
+        try {
+            const json = JSON.parse(res);
+            if (json.error === "Unauthorized") {
+                document.getElementById("key-error").style.display = "block";
+                return;
+            }
+        } catch(e) {}
+
+        WRITE_KEY = key;
         document.getElementById("key-overlay").style.display = "none";
     })
     .catch(() => {
-        WRITE_KEY = input;
+        WRITE_KEY = key;
         document.getElementById("key-overlay").style.display = "none";
     });
 }
@@ -113,6 +98,20 @@ function loadData() {
     });
 }
 
+/* ---------------- REALTIME REFRESH ---------------- */
+function refreshData() {
+    fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET_NAME))
+    .then(r => r.json())
+    .then(data => {
+        const newData = data.rows || [];
+
+        if (JSON.stringify(newData) !== JSON.stringify(tableData)) {
+            tableData = newData;
+            renderTable();
+        }
+    });
+}
+
 /* ---------------- RENDER ---------------- */
 function renderTable() {
 
@@ -120,8 +119,8 @@ function renderTable() {
 
     for (let i = 0; i < tableData.length; i++) {
 
-        const sheetRow = i + 2;
         const value = tableData[i][0] ?? "";
+        const sheetRow = i + 2;
 
         html += `
             <tr data-row="${sheetRow}">
@@ -130,7 +129,7 @@ function renderTable() {
         `;
     }
 
-    // ghost row
+    /* ghost row */
     html += `
         <tr class="ghost">
             <td contenteditable="true"></td>
@@ -142,80 +141,48 @@ function renderTable() {
     const container = document.getElementById("table-container");
     container.innerHTML = html;
 
-    // normal rows
-    container.querySelectorAll("tr[data-row]").forEach(row => {
-        const td = row.querySelector("td");
+    /* SAVE EXISTING ROWS */
+    container.querySelectorAll("tr[data-row]").forEach(tr => {
+        const td = tr.querySelector("td");
 
         td.addEventListener("blur", () => {
-            saveCell(row.dataset.row, 1, td.innerText.trim());
+            const value = td.innerText.trim();
+            saveCell(tr.dataset.row, 1, value);
         });
     });
 
-    // ghost row (auto add)
+    /* GHOST ROW */
     const ghost = container.querySelector(".ghost td");
 
     let promoted = false;
-    let newRow = null;
+    let rowId = null;
 
     ghost.addEventListener("input", () => {
         if (promoted) return;
         promoted = true;
 
-        newRow = tableData.length + 2;
+        rowId = tableData.length + 2;
 
-        rowToSheet({
+        postToSheet({
             sheet: SHEET_NAME,
             action: "addRow",
             key: WRITE_KEY
         });
 
         const tr = ghost.parentElement;
+        tr.dataset.row = rowId;
         tr.classList.remove("ghost");
-        tr.dataset.row = newRow;
 
-        // new ghost row
         const newGhost = document.createElement("tr");
         newGhost.className = "ghost";
         newGhost.innerHTML = `<td contenteditable="true"></td>`;
         tr.parentElement.appendChild(newGhost);
-
-        attachGhost(newGhost.querySelector("td"));
-    });
-}
-
-function attachGhost(td) {
-
-    let rowId = null;
-    let ready = false;
-
-    td.addEventListener("input", () => {
-        if (rowId) return;
-
-        rowId = tableData.length + 2;
-
-        rowToSheet({
-            sheet: SHEET_NAME,
-            action: "addRow",
-            key: WRITE_KEY
-        }).then(() => {
-            ready = true;
-        });
-
-        const tr = td.parentElement;
-        tr.dataset.row = rowId;
-    });
-
-    td.addEventListener("blur", () => {
-        if (!rowId) return;
-
-        const v = td.innerText.trim();
-        saveCell(rowId, 1, v);
     });
 }
 
 /* ---------------- SAVE ---------------- */
 function saveCell(row, col, value) {
-    rowToSheet({
+    postToSheet({
         sheet: SHEET_NAME,
         action: "update",
         row,
@@ -226,7 +193,7 @@ function saveCell(row, col, value) {
 }
 
 /* ---------------- POST ---------------- */
-function rowToSheet(body) {
+function postToSheet(body) {
     return fetch(API_URL, {
         method: "POST",
         headers: { "Content-Type": "text/plain" },
@@ -236,6 +203,7 @@ function rowToSheet(body) {
 
 /* ---------------- START ---------------- */
 loadData();
+setInterval(refreshData, 3000);
 
 </script>
 
