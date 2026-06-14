@@ -1,155 +1,241 @@
 <!DOCTYPE html>
 <html>
 <head>
-<link rel="stylesheet" href="style.css">
-<title>Themes</title>
+    <link rel="stylesheet" href="style.css">
+    <title>Themes</title>
 </head>
 
 <body>
 
 <header class="nav">
-  <h1 class="logo">MovieClub</h1>
-  <nav>
-    <a href="index.html">Home</a>
-    <a href="movies.html">Movie List</a>
-    <a href="themes.html">Themes</a>
-    <a href="leaderboard.html">Leaderboard</a>
-  </nav>
+    <h1 class="logo">Fil Club 🎬</h1>
+    <nav>
+        <a href="index.html">Home</a>
+        <a href="movies.html">Movie List</a>
+        <a href="themes.html">Themes</a>
+        <a href="leaderboard.html">Leaderboard</a>
+    </nav>
 </header>
 
+<!-- KEY OVERLAY -->
+<div id="key-overlay" style="
+    position:fixed; inset:0;
+    background:rgba(0,0,0,0.85);
+    display:flex; align-items:center; justify-content:center;
+    z-index:999;
+">
+    <div style="
+        background:#1a1a1a;
+        border:1px solid #333;
+        border-radius:8px;
+        padding:32px;
+        text-align:center;
+        min-width:300px;
+    ">
+        <h2 style="color:#fff; margin:0 0 8px;">Enter Edit Key</h2>
+
+        <p style="color:#888; margin:0 0 20px; font-size:14px;">
+            Required to edit themes
+        </p>
+
+        <input id="key-input" type="password" placeholder="Enter key..."
+            style="width:100%; padding:10px; border-radius:4px; border:1px solid #444;
+                   background:#111; color:#fff; font-size:16px; box-sizing:border-box; margin-bottom:12px;"
+            onkeydown="if(event.key==='Enter') submitKey()">
+
+        <button onclick="submitKey()" style="
+            width:100%;
+            padding:10px;
+            background:#e50914;
+            color:#fff;
+            border:none;
+            border-radius:4px;
+            font-size:16px;
+            cursor:pointer;">
+            Unlock
+        </button>
+
+        <p id="key-error" style="color:#e50914; margin:10px 0 0; font-size:13px; display:none;">
+            Incorrect key
+        </p>
+    </div>
+</div>
+
+<!-- PAGE -->
 <section class="row">
+    <div class="movie-header">
+        <h2>Themes</h2>
+    </div>
 
-  <div class="movie-header">
-    <h2>Themes Editor</h2>
-
-    <button onclick="addRow()">➕ Add Row</button>
-    <button onclick="downloadCSV()">Download CSV</button>
-  </div>
-
-  <div id="table-container">Loading...</div>
-
+    <div id="table-container">Loading...</div>
 </section>
 
 <script>
 
-const API_URL = "https://script.google.com/macros/s/AKfycbxUysWGi4OIOdiuuGi8pk7OUEBFJCkXaItY9bRHpbgRlLFs3EMGJozvYXEQr6ZoEpdM/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbyi8gzf6WY_BrCIQhd0DOM0qwPP17MjEe2V1BaVxidpo5EvMqgLWjkK38MLFX6zkiFF/exec";
 const SHEET_NAME = "Themes";
+const COLS = 1;
 
-let headers = [];
+let WRITE_KEY = null;
 let tableData = [];
 
+/* ---------------- KEY ---------------- */
+function submitKey() {
+    const input = document.getElementById("key-input").value.trim();
+
+    fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify({
+            sheet: SHEET_NAME,
+            action: "verify",
+            key: input
+        })
+    })
+    .then(r => r.text())
+    .then(() => {
+        WRITE_KEY = input;
+        document.getElementById("key-overlay").style.display = "none";
+    })
+    .catch(() => {
+        WRITE_KEY = input;
+        document.getElementById("key-overlay").style.display = "none";
+    });
+}
+
 /* ---------------- LOAD ---------------- */
-
-fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET_NAME))
-.then(r => r.json())
-.then(data => {
-
-    headers = data[0] || [];
-    tableData = data.slice(1) || [];
-
-    renderTable();
-});
-
+function loadData() {
+    fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET_NAME))
+    .then(r => r.json())
+    .then(data => {
+        tableData = data.rows || [];
+        renderTable();
+    });
+}
 
 /* ---------------- RENDER ---------------- */
-
 function renderTable() {
-
-    const COLS = headers.length || 10;
 
     let html = "<table>";
 
-    // headers
-    html += "<tr>";
-    for (let i = 0; i < COLS; i++) {
-        html += `<th>${headers[i] || ""}</th>`;
-    }
-    html += "</tr>";
-
-    // rows
     for (let i = 0; i < tableData.length; i++) {
 
         const sheetRow = i + 2;
+        const value = tableData[i][0] ?? "";
 
-        html += "<tr>";
-
-        for (let j = 0; j < COLS; j++) {
-
-            const value = tableData[i][j] ?? "";
-
-            html += `
-                <td contenteditable="true"
-                    onblur="saveCell(${sheetRow}, ${j + 1}, this.innerText)">
-                    ${value}
-                </td>`;
-        }
-
-        html += "</tr>";
+        html += `
+            <tr data-row="${sheetRow}">
+                <td contenteditable="true">${value}</td>
+            </tr>
+        `;
     }
+
+    // ghost row
+    html += `
+        <tr class="ghost">
+            <td contenteditable="true"></td>
+        </tr>
+    `;
 
     html += "</table>";
 
-    document.getElementById("table-container").innerHTML = html;
+    const container = document.getElementById("table-container");
+    container.innerHTML = html;
+
+    // normal rows
+    container.querySelectorAll("tr[data-row]").forEach(row => {
+        const td = row.querySelector("td");
+
+        td.addEventListener("blur", () => {
+            saveCell(row.dataset.row, 1, td.innerText.trim());
+        });
+    });
+
+    // ghost row (auto add)
+    const ghost = container.querySelector(".ghost td");
+
+    let promoted = false;
+    let newRow = null;
+
+    ghost.addEventListener("input", () => {
+        if (promoted) return;
+        promoted = true;
+
+        newRow = tableData.length + 2;
+
+        rowToSheet({
+            sheet: SHEET_NAME,
+            action: "addRow",
+            key: WRITE_KEY
+        });
+
+        const tr = ghost.parentElement;
+        tr.classList.remove("ghost");
+        tr.dataset.row = newRow;
+
+        // new ghost row
+        const newGhost = document.createElement("tr");
+        newGhost.className = "ghost";
+        newGhost.innerHTML = `<td contenteditable="true"></td>`;
+        tr.parentElement.appendChild(newGhost);
+
+        attachGhost(newGhost.querySelector("td"));
+    });
 }
 
+function attachGhost(td) {
+
+    let rowId = null;
+    let ready = false;
+
+    td.addEventListener("input", () => {
+        if (rowId) return;
+
+        rowId = tableData.length + 2;
+
+        rowToSheet({
+            sheet: SHEET_NAME,
+            action: "addRow",
+            key: WRITE_KEY
+        }).then(() => {
+            ready = true;
+        });
+
+        const tr = td.parentElement;
+        tr.dataset.row = rowId;
+    });
+
+    td.addEventListener("blur", () => {
+        if (!rowId) return;
+
+        const v = td.innerText.trim();
+        saveCell(rowId, 1, v);
+    });
+}
 
 /* ---------------- SAVE ---------------- */
-
 function saveCell(row, col, value) {
-
-    fetch(API_URL, {
-        method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-            sheet: SHEET_NAME,
-            action: "update",
-            row: row,
-            col: col,
-            value: value
-        })
+    rowToSheet({
+        sheet: SHEET_NAME,
+        action: "update",
+        row,
+        col,
+        value,
+        key: WRITE_KEY
     });
 }
 
-
-/* ---------------- ADD ROW ---------------- */
-
-function addRow() {
-
-    fetch(API_URL, {
+/* ---------------- POST ---------------- */
+function rowToSheet(body) {
+    return fetch(API_URL, {
         method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-            sheet: SHEET_NAME,
-            action: "addRow"
-        })
-    }).then(() => location.reload());
+        headers: { "Content-Type": "text/plain" },
+        body: JSON.stringify(body)
+    }).then(r => r.text());
 }
 
-
-/* ---------------- EXPORT CSV ---------------- */
-
-function downloadCSV() {
-
-    let csv = headers.join(",") + "\n";
-
-    tableData.forEach(r => {
-        csv += r.join(",") + "\n";
-    });
-
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "themes.csv";
-    a.click();
-
-    URL.revokeObjectURL(url);
-}
+/* ---------------- START ---------------- */
+loadData();
 
 </script>
 
