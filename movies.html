@@ -6,7 +6,7 @@
 </head>
 <body>
 <header class="nav">
-    <h1 class="logo">Film Club 🎬</h1>
+    <h1 class="logo">Fil Club 🎬</h1>
     <nav>
         <a href="index.html">Home</a>
         <a href="movies.html">Movie List</a>
@@ -46,27 +46,24 @@
 const API_URL = "https://script.google.com/macros/s/AKfycbyi8gzf6WY_BrCIQhd0DOM0qwPP17MjEe2V1BaVxidpo5EvMqgLWjkK38MLFX6zkiFF/exec";
 const SHEET_NAME = "Movie List";
 const COLS = 6;
-let WRITE_KEY = null; // set after user enters it
+
+let WRITE_KEY = null;
 let headers = [];
 let tableData = [];
 let nextSheetRow = 2;
 
-/* KEY PROMPT */
+/* ---------------- KEY ---------------- */
 function submitKey() {
     const input = document.getElementById("key-input").value.trim();
     if (!input) return;
 
-    // Verify the key by making a test POST
     fetch(API_URL, {
         method: "POST",
-        redirect: "follow",
         headers: { "Content-Type": "text/plain" },
         body: JSON.stringify({ sheet: SHEET_NAME, action: "verify", key: input })
     })
     .then(r => r.text())
     .then(text => {
-        // If the server returns "Unauthorized" the key is wrong
-        // Any other response (including unknown action) means the key passed auth
         try {
             const res = JSON.parse(text);
             if (res.error === "Unauthorized") {
@@ -74,21 +71,22 @@ function submitKey() {
                 return;
             }
         } catch(e) {}
-        // Key accepted
+
         WRITE_KEY = input;
         document.getElementById("key-overlay").style.display = "none";
     })
     .catch(() => {
-        // If CORS blocks the verify, just trust the key — it will fail on actual writes if wrong
         WRITE_KEY = input;
         document.getElementById("key-overlay").style.display = "none";
     });
 }
 
-/* LOAD DATA */
-fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET_NAME))
+/* ---------------- LOAD + REFRESH ---------------- */
+function loadData() {
+    fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET_NAME))
     .then(r => r.json())
     .then(data => {
+
         if (Array.isArray(data)) {
             headers = data[0] || [];
             tableData = data.slice(1);
@@ -97,7 +95,6 @@ fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET_NAME))
             tableData = data.rows;
         }
 
-        // Strip trailing empty rows
         while (tableData.length > 0) {
             const last = tableData[tableData.length - 1];
             if (last.every(c => c === "" || c === null || String(c).trim() === "")) {
@@ -106,25 +103,55 @@ fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET_NAME))
         }
 
         nextSheetRow = tableData.length + 2;
-        console.log("Loaded", tableData.length, "rows. Next sheet row:", nextSheetRow);
         renderTable();
     });
+}
 
-/* RENDER TABLE */
+/* 🔄 NEAR REAL TIME SYNC */
+function refreshData() {
+    fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET_NAME))
+    .then(r => r.json())
+    .then(data => {
+
+        let newHeaders = [];
+        let newTableData = [];
+
+        if (Array.isArray(data)) {
+            newHeaders = data[0] || [];
+            newTableData = data.slice(1);
+        } else if (data.headers && data.rows) {
+            newHeaders = data.headers;
+            newTableData = data.rows;
+        }
+
+        if (JSON.stringify(newTableData) !== JSON.stringify(tableData)) {
+            tableData = newTableData;
+            headers = newHeaders;
+            renderTable();
+        }
+    });
+}
+
+/* ---------------- RENDER ---------------- */
 function renderTable() {
     let html = "<table><tr>";
+
     for (let i = 0; i < COLS; i++) {
         html += `<th>${headers[i] || ""}</th>`;
     }
+
     html += "</tr>";
 
     for (let i = 0; i < tableData.length; i++) {
         const sheetRow = i + 2;
+
         html += `<tr data-sheet-row="${sheetRow}">`;
+
         for (let j = 0; j < COLS; j++) {
             const value = tableData[i][j] ?? "";
             html += `<td contenteditable="true">${value}</td>`;
         }
+
         html += "</tr>";
     }
 
@@ -134,14 +161,13 @@ function renderTable() {
     const container = document.getElementById("table-container");
     container.innerHTML = html;
 
-    // Attach blur listeners to all real rows
     container.querySelectorAll("tr[data-sheet-row]").forEach(row => {
         row.querySelectorAll("td").forEach((td, j) => {
             td.addEventListener("blur", () => {
                 const r = parseInt(row.dataset.sheetRow);
                 const c = j + 1;
                 const v = td.innerText.trim();
-                saveCell(r, c, v);
+                saveCell(r, c, v); // allows delete = empty
             });
         });
     });
@@ -149,95 +175,85 @@ function renderTable() {
     attachGhostListeners(container.querySelector("tr.ghost-row"));
 }
 
-/* BUILD GHOST ROW */
+/* ---------------- GHOST ROW ---------------- */
 function buildGhostRow() {
     return `<tr class="ghost-row">${
         Array(COLS).fill(`<td contenteditable="true"></td>`).join("")
     }</tr>`;
 }
 
-/* ATTACH LISTENERS TO A GHOST ROW */
 function attachGhostListeners(ghostRow) {
     if (!ghostRow) return;
+
     let promoted = false;
     let sheetRow = null;
-    let rowReady = false; // true once addRow has completed
+    let rowReady = false;
 
     ghostRow.querySelectorAll("td").forEach((td, j) => {
         td.addEventListener("input", () => {
             if (promoted) return;
+
             promoted = true;
             sheetRow = nextSheetRow++;
+
             ghostRow.classList.remove("ghost-row");
             ghostRow.dataset.sheetRow = sheetRow;
-            console.log("Promoted ghost to sheet row", sheetRow);
 
-            // Add a new ghost row below
             const newGhost = document.createElement("tr");
             newGhost.classList.add("ghost-row");
             newGhost.innerHTML = Array(COLS).fill(`<td contenteditable="true"></td>`).join("");
             ghostRow.closest("table").appendChild(newGhost);
+
             attachGhostListeners(newGhost);
 
-            // ✅ addRow first — only mark ready when it completes
-            postToSheet({ sheet: SHEET_NAME, action: "addRow", key: WRITE_KEY })
-                .then(() => {
-                    console.log("addRow confirmed for sheet row", sheetRow);
-                    rowReady = true;
-
-                    // ✅ Flush any cells that blurred before the row existed
-                    ghostRow.querySelectorAll("td").forEach((cell, colIdx) => {
-                        const v = cell.innerText.trim();
-                        if (v) saveCell(sheetRow, colIdx + 1, v);
-                    });
-                });
+            postToSheet({
+                sheet: SHEET_NAME,
+                action: "addRow",
+                key: WRITE_KEY
+            }).then(() => {
+                rowReady = true;
+            });
         });
 
         td.addEventListener("blur", () => {
             if (!promoted || !sheetRow) return;
-            const col = j;
+
             const value = td.innerText.trim();
-            if (!value) return;
+            const col = j;
 
             if (rowReady) {
-                // Row exists in sheet, save immediately
-                console.log("Ghost blur (ready) — row:", sheetRow, "col:", col, "value:", value);
                 saveCell(sheetRow, col, value);
-            } else {
-                // addRow still in flight — the flush in .then() above will catch it
-                console.log("Ghost blur (pending addRow) — will flush after row ready");
             }
         });
     });
 }
 
-/* SAVE CELL */
+/* ---------------- SAVE ---------------- */
 function saveCell(row, col, value) {
-    console.log("saveCell — row:", row, "col:", col, "value:", value);
     postToSheet({
         sheet: SHEET_NAME,
         action: "update",
-        row: row,
-        col: col,
-        value: value,
+        row,
+        col,
+        value,
         key: WRITE_KEY
     });
 }
 
-/* POST HELPER */
+/* ---------------- POST ---------------- */
 function postToSheet(body) {
     return fetch(API_URL, {
         method: "POST",
-        redirect: "follow",
         headers: { "Content-Type": "text/plain" },
         body: JSON.stringify(body)
     })
-    .then(r => r.text())
-    .then(text => {
-        console.log("POST response:", text);
-    })
-    .catch(err => console.error("POST failed:", err));
+    .then(r => r.text());
 }
+
+/* ---------------- START ---------------- */
+loadData();
+setInterval(refreshData, 3000); // 🔥 near real-time sync every 3 sec
 </script>
+
 </body>
 </html>
