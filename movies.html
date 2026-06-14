@@ -15,23 +15,14 @@
     </nav>
 </header>
 
-<!-- KEY PROMPT OVERLAY -->
 <div id="key-overlay" style="
     position:fixed; inset:0; background:rgba(0,0,0,0.85);
     display:flex; align-items:center; justify-content:center; z-index:999;">
     <div style="background:#1a1a1a; border:1px solid #333; border-radius:8px; padding:32px; text-align:center; min-width:300px;">
-        <h2 style="color:#fff; margin:0 0 8px;">Enter Edit Key</h2>
-        <p style="color:#888; margin:0 0 20px; font-size:14px;">Required to make changes to the sheet</p>
-        <input id="key-input" type="password" placeholder="Enter key..."
-            style="width:100%; padding:10px; border-radius:4px; border:1px solid #444;
-                   background:#111; color:#fff; font-size:16px; box-sizing:border-box; margin-bottom:12px;"
-            onkeydown="if(event.key==='Enter') submitKey()">
-        <button onclick="submitKey()" style="
-            width:100%; padding:10px; background:#e50914; color:#fff;
-            border:none; border-radius:4px; font-size:16px; cursor:pointer;">
-            Unlock
-        </button>
-        <p id="key-error" style="color:#e50914; margin:10px 0 0; font-size:13px; display:none;">Incorrect key, try again.</p>
+        <h2 style="color:#fff;">Enter Edit Key</h2>
+        <input id="key-input" type="password" style="width:100%; padding:10px;">
+        <button onclick="submitKey()" style="margin-top:10px;">Unlock</button>
+        <p id="key-error" style="color:red; display:none;">Wrong key</p>
     </div>
 </div>
 
@@ -43,6 +34,7 @@
 </section>
 
 <script>
+
 const API_URL = "https://script.google.com/macros/s/AKfycbyi8gzf6WY_BrCIQhd0DOM0qwPP17MjEe2V1BaVxidpo5EvMqgLWjkK38MLFX6zkiFF/exec";
 const SHEET_NAME = "Movie List";
 const COLS = 6;
@@ -50,27 +42,26 @@ const COLS = 6;
 let WRITE_KEY = null;
 let headers = [];
 let tableData = [];
-let nextSheetRow = 2;
 
 /* ---------------- KEY ---------------- */
 function submitKey() {
     const input = document.getElementById("key-input").value.trim();
-    if (!input) return;
 
     fetch(API_URL, {
         method: "POST",
-        headers: { "Content-Type": "text/plain" },
-        body: JSON.stringify({ sheet: SHEET_NAME, action: "verify", key: input })
+        headers: {"Content-Type":"text/plain"},
+        body: JSON.stringify({
+            sheet: SHEET_NAME,
+            action: "verify",
+            key: input
+        })
     })
-    .then(r => r.text())
-    .then(text => {
-        try {
-            const res = JSON.parse(text);
-            if (res.error === "Unauthorized") {
-                document.getElementById("key-error").style.display = "block";
-                return;
-            }
-        } catch(e) {}
+    .then(r => r.json())
+    .then(res => {
+        if (res.error === "Unauthorized") {
+            document.getElementById("key-error").style.display = "block";
+            return;
+        }
 
         WRITE_KEY = input;
         document.getElementById("key-overlay").style.display = "none";
@@ -81,52 +72,41 @@ function submitKey() {
     });
 }
 
-/* ---------------- LOAD + REFRESH ---------------- */
+/* ---------------- LOAD ---------------- */
 function loadData() {
     fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET_NAME))
     .then(r => r.json())
     .then(data => {
 
-        if (Array.isArray(data)) {
-            headers = data[0] || [];
-            tableData = data.slice(1);
-        } else if (data.headers && data.rows) {
-            headers = data.headers;
-            tableData = data.rows;
-        }
+        headers = data.headers || [];
+        tableData = data.rows || [];
 
-        while (tableData.length > 0) {
-            const last = tableData[tableData.length - 1];
-            if (last.every(c => c === "" || c === null || String(c).trim() === "")) {
-                tableData.pop();
-            } else break;
-        }
+        // 🔥 IMPORTANT: lock row IDs ONCE per load
+        tableData = tableData.map((r, i) => {
+            r._row = i + 2;
+            return r;
+        });
 
-        nextSheetRow = tableData.length + 2;
         renderTable();
     });
 }
 
-/* 🔄 NEAR REAL TIME SYNC */
+/* ---------------- REFRESH (SAFE) ---------------- */
 function refreshData() {
     fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET_NAME))
     .then(r => r.json())
     .then(data => {
 
-        let newHeaders = [];
-        let newTableData = [];
+        const newRows = data.rows || [];
 
-        if (Array.isArray(data)) {
-            newHeaders = data[0] || [];
-            newTableData = data.slice(1);
-        } else if (data.headers && data.rows) {
-            newHeaders = data.headers;
-            newTableData = data.rows;
-        }
+        // only update if changed
+        if (JSON.stringify(newRows) !== JSON.stringify(tableData.map(r => r.slice?.() || r))) {
 
-        if (JSON.stringify(newTableData) !== JSON.stringify(tableData)) {
-            tableData = newTableData;
-            headers = newHeaders;
+            tableData = newRows.map((r, i) => {
+                r._row = i + 2;
+                return r;
+            });
+
             renderTable();
         }
     });
@@ -134,6 +114,7 @@ function refreshData() {
 
 /* ---------------- RENDER ---------------- */
 function renderTable() {
+
     let html = "<table><tr>";
 
     for (let i = 0; i < COLS; i++) {
@@ -143,12 +124,14 @@ function renderTable() {
     html += "</tr>";
 
     for (let i = 0; i < tableData.length; i++) {
-        const sheetRow = i + 2;
+
+        const row = tableData[i];
+        const sheetRow = row._row;
 
         html += `<tr data-sheet-row="${sheetRow}">`;
 
         for (let j = 0; j < COLS; j++) {
-            const value = tableData[i][j] ?? "";
+            const value = row[j] ?? "";
             html += `<td contenteditable="true">${value}</td>`;
         }
 
@@ -165,14 +148,13 @@ function renderTable() {
         row.querySelectorAll("td").forEach((td, j) => {
             td.addEventListener("blur", () => {
                 const r = parseInt(row.dataset.sheetRow);
-                const c = j + 1;
                 const v = td.innerText.trim();
-                saveCell(r, c, v); // allows delete = empty
+                saveCell(r, j + 1, v);
             });
         });
     });
 
-    attachGhostListeners(container.querySelector("tr.ghost-row"));
+    attachGhost(container.querySelector("tr.ghost-row"));
 }
 
 /* ---------------- GHOST ROW ---------------- */
@@ -182,55 +164,49 @@ function buildGhostRow() {
     }</tr>`;
 }
 
-function attachGhostListeners(ghostRow) {
-    if (!ghostRow) return;
+function attachGhost(ghost) {
+    if (!ghost) return;
 
-    let promoted = false;
-    let sheetRow = null;
-    let rowReady = false;
+    let done = false;
+    let rowId = null;
 
-    ghostRow.querySelectorAll("td").forEach((td, j) => {
+    ghost.querySelectorAll("td").forEach((td, j) => {
+
         td.addEventListener("input", () => {
-            if (promoted) return;
+            if (done) return;
+            done = true;
 
-            promoted = true;
-            sheetRow = nextSheetRow++;
+            rowId = tableData.length + 2;
 
-            ghostRow.classList.remove("ghost-row");
-            ghostRow.dataset.sheetRow = sheetRow;
+            ghost.classList.remove("ghost-row");
+            ghost.dataset.sheetRow = rowId;
 
             const newGhost = document.createElement("tr");
             newGhost.classList.add("ghost-row");
-            newGhost.innerHTML = Array(COLS).fill(`<td contenteditable="true"></td>`).join("");
-            ghostRow.closest("table").appendChild(newGhost);
+            newGhost.innerHTML = buildGhostRow().replace(/<\/?tr.*?>/g, "");
+            ghost.parentElement.appendChild(newGhost);
 
-            attachGhostListeners(newGhost);
+            attachGhost(newGhost);
 
-            postToSheet({
+            post({
                 sheet: SHEET_NAME,
                 action: "addRow",
                 key: WRITE_KEY
-            }).then(() => {
-                rowReady = true;
             });
         });
 
         td.addEventListener("blur", () => {
-            if (!promoted || !sheetRow) return;
+            if (!rowId) return;
 
-            const value = td.innerText.trim();
-            const col = j;
-
-            if (rowReady) {
-                saveCell(sheetRow, col, value);
-            }
+            const val = td.innerText.trim();
+            if (val) saveCell(rowId, j + 1, val);
         });
     });
 }
 
 /* ---------------- SAVE ---------------- */
 function saveCell(row, col, value) {
-    postToSheet({
+    post({
         sheet: SHEET_NAME,
         action: "update",
         row,
@@ -241,19 +217,18 @@ function saveCell(row, col, value) {
 }
 
 /* ---------------- POST ---------------- */
-function postToSheet(body) {
+function post(body) {
     return fetch(API_URL, {
         method: "POST",
-        headers: { "Content-Type": "text/plain" },
+        headers: {"Content-Type":"text/plain"},
         body: JSON.stringify(body)
-    })
-    .then(r => r.text());
+    });
 }
 
 /* ---------------- START ---------------- */
 loadData();
-setInterval(refreshData, 3000); // 🔥 near real-time sync every 3 sec
-</script>
+setInterval(refreshData, 3000);
 
+</script>
 </body>
 </html>
