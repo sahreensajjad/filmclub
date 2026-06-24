@@ -142,7 +142,7 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Movie List"))
         return;
     }
 
-    // get theme (assume same for all rows, take last non-empty)
+    // theme
     for (const r of rows) {
         if (r[themeIndex]) currentTheme = r[themeIndex];
     }
@@ -163,6 +163,13 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Movie List"))
         const suggestedBy = suggestedIndex !== -1 ? row[suggestedIndex] : "";
         const comments = commentsIndex !== -1 ? row[commentsIndex] : "";
 
+        // ✅ HARD OVERRIDE
+        let imdbOverride = null;
+
+        if (movie.toLowerCase().includes("planet of the apes")) {
+            imdbOverride = "tt0063442";
+        }
+
         try {
 
             const omdb = await fetch(
@@ -175,7 +182,7 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Movie List"))
                 plot: (omdb.Plot && omdb.Plot !== "N/A") ? omdb.Plot : "No description available.",
                 year: omdb.Year || "",
                 rating: omdb.imdbRating || "",
-                imdbID: omdb.imdbID || "",
+                imdbID: imdbOverride || omdb.imdbID || "",
                 suggestedBy,
                 comments
             });
@@ -243,7 +250,7 @@ function renderMovies(movies) {
 }
 
 
-/* SEARCH (UPDATED) */
+/* SEARCH */
 document.getElementById("search")
 .addEventListener("input", function() {
 
