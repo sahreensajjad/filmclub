@@ -156,46 +156,50 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Movie List"))
 
     const movieData = [];
 
-    for (const movie of movies) {
+for (const movie of movies) {
 
-        const row = rows.find(r => r[movieIndex] === movie) || [];
+    const row = rows.find(r => r[movieIndex] === movie) || [];
 
-        const suggestedBy = suggestedIndex !== -1 ? row[suggestedIndex] : "";
-        const comments = commentsIndex !== -1 ? row[commentsIndex] : "";
+    const suggestedBy = suggestedIndex !== -1 ? row[suggestedIndex] : "";
+    const comments = commentsIndex !== -1 ? row[commentsIndex] : "";
 
-        // ✅ HARD OVERRIDE
-        let imdbOverride = null;
+    try {
 
+        let omdb;
+
+        // ✅ HARD OVERRIDE (FULL FIX)
         if (movie.toLowerCase().includes("planet of the apes")) {
-            imdbOverride = "tt0063442";
-        }
 
-        try {
+            omdb = await fetch(
+                `https://www.omdbapi.com/?i=tt0063442&apikey=${OMDB_KEY}`
+            ).then(r => r.json());
 
-            const omdb = await fetch(
+        } else {
+
+            omdb = await fetch(
                 `https://www.omdbapi.com/?t=${encodeURIComponent(movie)}&apikey=${OMDB_KEY}`
             ).then(r => r.json());
 
-            movieData.push({
-                title: omdb.Title || movie,
-                poster: (omdb.Poster && omdb.Poster !== "N/A") ? omdb.Poster : "",
-                plot: (omdb.Plot && omdb.Plot !== "N/A") ? omdb.Plot : "No description available.",
-                year: omdb.Year || "",
-                rating: omdb.imdbRating || "",
-                imdbID: imdbOverride || omdb.imdbID || "",
-                suggestedBy,
-                comments
-            });
-
-        } catch (err) {
-            console.error(movie, err);
         }
+
+        movieData.push({
+            title: omdb.Title || movie,
+            poster: (omdb.Poster && omdb.Poster !== "N/A") ? omdb.Poster : "",
+            plot: (omdb.Plot && omdb.Plot !== "N/A") ? omdb.Plot : "No description available.",
+            year: omdb.Year || "",
+            rating: omdb.imdbRating || "",
+            imdbID: omdb.imdbID || "",
+            suggestedBy,
+            comments
+        });
+
+    } catch (err) {
+        console.error(movie, err);
     }
+}
 
-    allMovies = movieData;
-    renderMovies(movieData);
-});
-
+allMovies = movieData;
+renderMovies(movieData);
 
 /* RENDER */
 function renderMovies(movies) {
