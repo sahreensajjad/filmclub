@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html>
+<head>
+<link rel="stylesheet" href="style.css">
+<title>Themes</title>
+
+<style>
+
+#key-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 999;
+}
+
+#key-overlay > div {
+    background: #1a1a1a;
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 32px;
+    min-width: 300px;
+    text-align: center;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+td {
+    padding: 10px;
+    border-bottom: 1px solid #222;
+}
+
+input[type="text"] {
+    width: 100%;
+    background: transparent;
+    border: none;
+    color: white;
+    outline: none;
+}
+
+.strike {
+    text-decoration: line-through;
+    opacity: 0.5;
+}
+
+</style>
+</head>
+
+<body>
+
+<header class="nav">
+  <h1 class="logo">Film Club 🎬</h1>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="movies.html">Movie List</a>
+    <a href="themes.html">Themes</a>
+    <a href="leaderboard.html">Leaderboard</a>
+  </nav>
+</header>
+
+<!-- KEY -->
+<div id="key-overlay">
+  <div>
+    <h2 style="color:white;">Enter Key</h2>
+    <input id="key-input" type="password" style="width:100%;padding:10px;">
+    <button onclick="submitKey()" style="width:100%;margin-top:10px;">Unlock</button>
+  </div>
+</div>
+
+<section class="row">
+  <h2>Themes</h2>
+  <div id="table-container">Loading...</div>
+</section>
+
+<script>
+
+const API_URL = "https://script.google.com/macros/s/AKfycbyi8gzf6WY_BrCIQhd0DOM0qwPP17MjEe2V1BaVxidpo5EvMqgLWjkK38MLFX6zkiFF/exec";
+const SHEET_NAME = "Themes";
+
+let WRITE_KEY = null;
+let tableData = [];
+
+/* ---------------- KEY ---------------- */
+function submitKey() {
+    WRITE_KEY = document.getElementById("key-input").value.trim();
+    document.getElementById("key-overlay").style.display = "none";
+}
+
+/* ---------------- LOAD ---------------- */
+function loadData() {
+    fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET_NAME))
+    .then(r => r.json())
+    .then(data => {
+        tableData = data.rows || [];
+        renderTable();
+    });
+}
+
+/* ---------------- RENDER ---------------- */
+function renderTable() {
+
+    let html = "<table>";
+
+    tableData.forEach((row, i) => {
+
+        const theme = row[0] || "";
+        const done = String(row[1]).toUpperCase() === "TRUE";
+
+        html += `
+        <tr>
+            <td>
+                <div style="display:flex; gap:10px; align-items:center;">
+
+                    <input type="checkbox"
+                        ${done ? "checked" : ""}
+                        onchange="toggleDone(${i + 2}, this.checked)">
+
+                    <input type="text"
+                        value="${theme}"
+                        onblur="updateTheme(${i + 2}, this.value)"
+                        class="${done ? 'strike' : ''}">
+                </div>
+            </td>
+        </tr>`;
+    });
+
+    html += `
+    <tr>
+        <td>
+            <input id="ghost"
+                type="text"
+                placeholder="Add new theme..."
+                onkeydown="ghostKey(event,this)">
+        </td>
+    </tr>`;
+
+    html += "</table>";
+
+    document.getElementById("table-container").innerHTML = html;
+}
+
+/* ---------------- CHECKBOX + SHEET STRIKE FIX ---------------- */
+function toggleDone(row, checked) {
+
+    tableData[row - 2][1] = checked ? "TRUE" : "FALSE";
+
+    const rangeUpdate = [
+        {
+            row,
+            col: 2,
+            value: checked ? "TRUE" : "FALSE"
+        }
+    ];
+
+    fetch(API_URL, {
+        method: "POST",
+        headers: {"Content-Type":"text/plain"},
+        body: JSON.stringify({
+            sheet: SHEET_NAME,
+            action: "update",
+            row,
+            col: 2,
+            value: checked ? "TRUE" : "FALSE",
+            key: WRITE_KEY
+        })
+    });
+
+    /* 🔥 NEW: APPLY STRIKETHROUGH IN SHEET */
+    fetch(API_URL, {
+        method: "POST",
+        headers: {"Content-Type":"text/plain"},
+        body: JSON.stringify({
+            sheet: SHEET_NAME,
+            action: "formatStrike",
+            row,
+            col: 1,
+            strike: checked,
+            key: WRITE_KEY
+        })
+    });
+
+    renderTable();
+}
+
+/* ---------------- UPDATE TEXT ---------------- */
+function updateTheme(row, value) {
+
+    tableData[row - 2][0] = value;
+
+    fetch(API_URL, {
+        method: "POST",
+        headers: {"Content-Type":"text/plain"},
+        body: JSON.stringify({
+            sheet: SHEET_NAME,
+            action: "update",
+            row,
+            col: 1,
+            value,
+            key: WRITE_KEY
+        })
+    });
+}
+
+/* ---------------- GHOST ROW FIX (NO BLANK ROWS) ---------------- */
+function ghostKey(e, input) {
+
+    if (e.key !== "Enter") return;
+
+    const value = input.value.trim();
+    if (!value) return;
+
+    const row = tableData.length + 2;
+
+    tableData.push([value, "FALSE"]);
+    input.value = "";
+
+    renderTable();
+
+    fetch(API_URL, {
+        method: "POST",
+        headers: {"Content-Type":"text/plain"},
+        body: JSON.stringify({
+            sheet: SHEET_NAME,
+            action: "addRow",
+            key: WRITE_KEY
+        })
+    })
+    .then(() => {
+        return fetch(API_URL, {
+            method: "POST",
+            headers: {"Content-Type":"text/plain"},
+            body: JSON.stringify({
+                sheet: SHEET_NAME,
+                action: "update",
+                row,
+                col: 1,
+                value,
+                key: WRITE_KEY
+            })
+        });
+    })
+    .then(() => {
+        return fetch(API_URL, {
+            method: "POST",
+            headers: {"Content-Type":"text/plain"},
+            body: JSON.stringify({
+                sheet: SHEET_NAME,
+                action: "update",
+                row,
+                col: 2,
+                value: "FALSE",
+                key: WRITE_KEY
+            })
+        });
+    });
+}
+
+/* ---------------- START ---------------- */
+loadData();
+
+</script>
+
+</body>
+</html>

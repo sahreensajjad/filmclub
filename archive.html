@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html>
+<head>
+<link rel="stylesheet" href="style.css">
+<title>Archive</title>
+
+<style>
+
+.theme-section{
+    margin-bottom:50px;
+}
+
+.theme-title{
+    margin-bottom:20px;
+    font-size:32px;
+}
+
+.movie-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(260px,1fr));
+    gap:20px;
+}
+
+.movie-card{
+    background:#1a1a1a;
+    border-radius:10px;
+    overflow:hidden;
+    border:1px solid #333;
+}
+
+.movie-card img{
+    width:100%;
+    height:350px;
+    object-fit:cover;
+}
+
+.movie-info{
+    padding:15px;
+}
+
+.movie-info h3{
+    margin:0 0 8px;
+}
+
+.meta{
+    color:#aaa;
+    font-size:13px;
+    margin-bottom:10px;
+}
+
+.suggested{
+    margin-top:10px;
+    font-size:14px;
+}
+
+.comments{
+    margin-top:8px;
+    color:#ddd;
+    font-size:14px;
+}
+
+#searchBox{
+    width:100%;
+    max-width:500px;
+    padding:12px;
+    margin:20px 0;
+    border-radius:6px;
+    border:1px solid #333;
+    background:#111;
+    color:#fff;
+    font-size:16px;
+}
+
+</style>
+</head>
+
+<body>
+
+<header class="nav">
+    <h1 class="logo">Film Club 🎬</h1>
+
+    <nav>
+        <a href="index.html">Home</a>
+        <a href="movies.html">Movie List</a>
+        <a href="themes.html">Themes</a>
+        <a href="discover.html">Discover</a>
+        <a href="archive.html">Archive</a>
+        <a href="leaderboard.html">Leaderboard</a>
+    </nav>
+</header>
+
+<section class="row">
+    <h2>Archive</h2>
+
+    <input id="searchBox" placeholder="Search movies, themes, people...">
+
+    <div id="archive">Loading...</div>
+</section>
+
+<script>
+
+const API_URL =
+"https://script.google.com/macros/s/AKfycbyi8gzf6WY_BrCIQhd0DOM0qwPP17MjEe2V1BaVxidpo5EvMqgLWjkK38MLFX6zkiFF/exec";
+
+const OMDB_KEY = "f4f91679";
+
+let ALL_ITEMS = [];
+
+/* ================= LOAD ================= */
+
+fetch(API_URL + "?sheet=" + encodeURIComponent("Archive"))
+.then(r => r.json())
+.then(async data => {
+
+    let rows = data.rows || data.slice(1);
+
+    const grouped = {};
+    let currentTheme = "";
+
+    rows.forEach(row => {
+
+        if (row[0] && String(row[0]).trim() !== "") {
+            currentTheme = row[0];
+        }
+
+        const movie = row[1];
+        if (!currentTheme || !movie) return;
+
+        const item = {
+            theme: currentTheme,
+            movie: row[1],
+            genre: row[2],
+            watch: row[3],
+            suggested: row[4],
+            comments: row[5]
+        };
+
+        if (!grouped[currentTheme]) {
+            grouped[currentTheme] = [];
+        }
+
+        grouped[currentTheme].push(item);
+    });
+
+    // flatten for smart search
+    ALL_ITEMS = [];
+    for (const t in grouped) {
+        grouped[t].forEach(i => ALL_ITEMS.push(i));
+    }
+
+    render(grouped);
+});
+
+/* ================= GROUP ================= */
+
+function groupByTheme(items){
+    const grouped = {};
+
+    items.forEach(item => {
+        if(!grouped[item.theme]){
+            grouped[item.theme] = [];
+        }
+        grouped[item.theme].push(item);
+    });
+
+    return grouped;
+}
+
+/* ================= RENDER ================= */
+
+async function render(grouped){
+
+    let html = "";
+    const cache = {};
+
+    for(const theme of Object.keys(grouped)){
+
+        html += `
+            <div class="theme-section">
+                <h2 class="theme-title">${theme}</h2>
+                <div class="movie-grid">
+        `;
+
+        for(const item of grouped[theme]){
+
+            let omdb;
+
+            if(cache[item.movie]){
+                omdb = cache[item.movie];
+            } else {
+                try{
+                    omdb = await fetch(
+                        `https://www.omdbapi.com/?t=${encodeURIComponent(item.movie)}&apikey=${OMDB_KEY}`
+                    ).then(r=>r.json());
+
+                    cache[item.movie] = omdb;
+                } catch(e){
+                    omdb = {};
+                }
+            }
+
+            const poster =
+                omdb.Poster && omdb.Poster !== "N/A"
+                ? omdb.Poster
+                : "";
+
+            html += `
+                <div class="movie-card">
+
+                    <img src="${poster}" alt="${item.movie}">
+
+                    <div class="movie-info">
+
+                        <h3>${item.movie}</h3>
+
+                        <div class="meta">
+                            ${omdb.Year || ""}
+                            ${omdb.imdbRating ? ` • ⭐ ${omdb.imdbRating}` : ""}
+                        </div>
+
+                        <p>
+                            ${omdb.Plot && omdb.Plot !== "N/A" ? omdb.Plot : ""}
+                        </p>
+
+                        <div class="suggested">
+                            <strong>Suggested By:</strong> ${item.suggested || "-"}
+                        </div>
+
+                        <div class="comments">
+                            <strong>Comments:</strong> ${item.comments || "-"}
+                        </div>
+
+                    </div>
+
+                </div>
+            `;
+        }
+
+        html += `</div></div>`;
+    }
+
+    document.getElementById("archive").innerHTML = html;
+}
+
+/* ================= SMART SEARCH ================= */
+
+document.getElementById("searchBox").addEventListener("input", function () {
+
+    const q = this.value.trim().toLowerCase();
+
+    if(!q){
+        render(groupByTheme(ALL_ITEMS));
+        return;
+    }
+
+    const filtered = ALL_ITEMS.filter(item => {
+
+        const theme = item.theme.toLowerCase();
+        const movie = item.movie.toLowerCase();
+        const suggested = (item.suggested || "").toLowerCase();
+
+        // SMART LOGIC:
+        return (
+            movie.includes(q) ||
+            theme.includes(q) ||
+            suggested.includes(q)
+        );
+    });
+
+    render(groupByTheme(filtered));
+});
+
+</script>
+
+</body>
+</html>

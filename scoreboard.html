@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+<link rel="stylesheet" href="style.css">
+<title>Movie Scoreboard</title>
+</head>
+
+<body>
+
+<header class="nav">
+  <h1 class="logo">MovieClub</h1>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="movies.html">Movie List</a>
+    <a href="scoreboard.html">Scoreboard</a>
+    <a href="leaderboard.html">Leaderboard</a>
+  </nav>
+</header>
+
+<section class="row">
+  <h2>🎬 Movie Scoreboard</h2>
+  <div id="board">Loading...</div>
+</section>
+
+<script>
+
+const API_URL = "https://script.google.com/macros/s/AKfycbxHQxuQV-kCOEKEJd4JdeOcgHRUfJfdwGC5fSzV0OcUHk7fbfnzOjHkjzFuNUGsQ1Bc/exec";
+const GID = "1069437142";
+
+let rows = [];
+
+load();
+
+function load() {
+
+  fetch(API_URL + "?gid=" + GID)
+    .then(r => r.json())
+    .then(res => {
+
+      rows = res.slice(1); // skip header
+      render();
+    });
+}
+
+function render() {
+
+  let html = "<div class='grid'>";
+
+  rows.forEach((row, i) => {
+
+    const movie = row[0];
+    const suggested = row[1];
+    const avg = row[row.length - 1];
+
+    if (!movie) return;
+
+    html += `
+      <div class="card">
+
+        <img src="https://source.unsplash.com/300x400/?movie,${encodeURIComponent(movie)}">
+
+        <strong contenteditable="true"
+          onblur="save(${i},0,this.innerText)">
+          ${movie}
+        </strong>
+
+        <small>
+          Suggested by:
+          <span contenteditable="true"
+            onblur="save(${i},1,this.innerText)">
+            ${suggested || ""}
+          </span>
+        </small>
+
+        <small>⭐ ${avg || "N/A"}</small>
+
+      </div>
+    `;
+  });
+
+  html += "</div>";
+
+  document.getElementById("board").innerHTML = html;
+}
+
+function save(row, col, value) {
+
+  fetch(API_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      gid: GID,
+      action: "update",
+      row,
+      col,
+      value
+    })
+  });
+}
+
+</script>
+
+</body>
+</html>

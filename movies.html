@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <link rel="stylesheet" href="style.css">
+    <title>Movie List</title>
+</head>
+<body>
+<header class="nav">
+    <h1 class="logo">Fil Club 🎬</h1>
+    <nav>
+        <a href="index.html">Home</a>
+        <a href="movies.html">Movie List</a>
+        <a href="themes.html">Themes</a>
+        <a href="leaderboard.html">Leaderboard</a>
+    </nav>
+</header>
+
+<div id="key-overlay" style="
+    position:fixed; inset:0;
+    background:rgba(0,0,0,0.85);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    z-index:999;
+">
+    <div style="
+        background:#1a1a1a;
+        border:1px solid #333;
+        border-radius:8px;
+        padding:32px;
+        text-align:center;
+        min-width:300px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.6);
+    ">
+        <h2 style="color:#fff; margin:0 0 8px;">Enter Edit Key</h2>
+
+        <p style="color:#888; margin:0 0 20px; font-size:14px;">
+            Required to make changes to the sheet
+        </p>
+
+        <input id="key-input" type="password" placeholder="Enter key..."
+            style="
+                width:100%;
+                padding:10px;
+                border-radius:4px;
+                border:1px solid #444;
+                background:#111;
+                color:#fff;
+                font-size:16px;
+                box-sizing:border-box;
+                margin-bottom:12px;
+                outline:none;
+            "
+            onkeydown="if(event.key==='Enter') submitKey()"
+        >
+
+        <button onclick="submitKey()" style="
+            width:100%;
+            padding:10px;
+            background:#e50914;
+            color:#fff;
+            border:none;
+            border-radius:4px;
+            font-size:16px;
+            cursor:pointer;
+            transition:0.2s;
+        "
+        onmouseover="this.style.opacity=0.85"
+        onmouseout="this.style.opacity=1"
+        >
+            Unlock
+        </button>
+
+        <p id="key-error" style="
+            color:#e50914;
+            margin:10px 0 0;
+            font-size:13px;
+            display:none;
+        ">
+            Incorrect key, try again.
+        </p>
+    </div>
+</div>
+
+<section class="row">
+    <div class="movie-header">
+        <h2>Movie List</h2>
+    </div>
+    <div id="table-container">Loading...</div>
+</section>
+
+<script>
+
+const API_URL = "https://script.google.com/macros/s/AKfycbyi8gzf6WY_BrCIQhd0DOM0qwPP17MjEe2V1BaVxidpo5EvMqgLWjkK38MLFX6zkiFF/exec";
+const SHEET_NAME = "Movie List";
+const COLS = 6;
+
+let WRITE_KEY = null;
+let headers = [];
+let tableData = [];
+
+/* ---------------- KEY ---------------- */
+function submitKey() {
+    const input = document.getElementById("key-input").value.trim();
+
+    fetch(API_URL, {
+        method: "POST",
+        headers: {"Content-Type":"text/plain"},
+        body: JSON.stringify({
+            sheet: SHEET_NAME,
+            action: "verify",
+            key: input
+        })
+    })
+    .then(r => r.json())
+    .then(res => {
+        if (res.error === "Unauthorized") {
+            document.getElementById("key-error").style.display = "block";
+            return;
+        }
+
+        WRITE_KEY = input;
+        document.getElementById("key-overlay").style.display = "none";
+    })
+    .catch(() => {
+        WRITE_KEY = input;
+        document.getElementById("key-overlay").style.display = "none";
+    });
+}
+
+/* ---------------- LOAD ---------------- */
+function loadData() {
+    fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET_NAME))
+    .then(r => r.json())
+    .then(data => {
+
+        headers = data.headers || [];
+        tableData = data.rows || [];
+
+        // 🔥 IMPORTANT: lock row IDs ONCE per load
+        tableData = tableData.map((r, i) => {
+            r._row = i + 2;
+            return r;
+        });
+
+        renderTable();
+    });
+}
+
+/* ---------------- REFRESH (SAFE) ---------------- */
+function refreshData() {
+    fetch(API_URL + "?sheet=" + encodeURIComponent(SHEET_NAME))
+    .then(r => r.json())
+    .then(data => {
+
+        const newRows = data.rows || [];
+
+        // only update if changed
+        if (JSON.stringify(newRows) !== JSON.stringify(tableData.map(r => r.slice?.() || r))) {
+
+            tableData = newRows.map((r, i) => {
+                r._row = i + 2;
+                return r;
+            });
+
+            renderTable();
+        }
+    });
+}
+
+/* ---------------- RENDER ---------------- */
+function renderTable() {
+
+    let html = "<table><tr>";
+
+    for (let i = 0; i < COLS; i++) {
+        html += `<th>${headers[i] || ""}</th>`;
+    }
+
+    html += "</tr>";
+
+    for (let i = 0; i < tableData.length; i++) {
+
+        const row = tableData[i];
+        const sheetRow = row._row;
+
+        html += `<tr data-sheet-row="${sheetRow}">`;
+
+        for (let j = 0; j < COLS; j++) {
+            const value = row[j] ?? "";
+            html += `<td contenteditable="true">${value}</td>`;
+        }
+
+        html += "</tr>";
+    }
+
+    html += buildGhostRow();
+    html += "</table>";
+
+    const container = document.getElementById("table-container");
+    container.innerHTML = html;
+
+    container.querySelectorAll("tr[data-sheet-row]").forEach(row => {
+        row.querySelectorAll("td").forEach((td, j) => {
+            td.addEventListener("blur", () => {
+                const r = parseInt(row.dataset.sheetRow);
+                const v = td.innerText.trim();
+                saveCell(r, j + 1, v);
+            });
+        });
+    });
+
+    attachGhost(container.querySelector("tr.ghost-row"));
+}
+
+/* ---------------- GHOST ROW ---------------- */
+function buildGhostRow() {
+    return `<tr class="ghost-row">${
+        Array(COLS).fill(`<td contenteditable="true"></td>`).join("")
+    }</tr>`;
+}
+
+function attachGhost(ghost) {
+    if (!ghost) return;
+
+    let done = false;
+    let rowId = null;
+
+    ghost.querySelectorAll("td").forEach((td, j) => {
+
+        td.addEventListener("input", () => {
+            if (done) return;
+            done = true;
+
+            rowId = tableData.length + 2;
+
+            ghost.classList.remove("ghost-row");
+            ghost.dataset.sheetRow = rowId;
+
+            const newGhost = document.createElement("tr");
+            newGhost.classList.add("ghost-row");
+            newGhost.innerHTML = buildGhostRow().replace(/<\/?tr.*?>/g, "");
+            ghost.parentElement.appendChild(newGhost);
+
+            attachGhost(newGhost);
+
+            post({
+                sheet: SHEET_NAME,
+                action: "addRow",
+                key: WRITE_KEY
+            });
+        });
+
+        td.addEventListener("blur", () => {
+            if (!rowId) return;
+
+            const val = td.innerText.trim();
+            if (val) saveCell(rowId, j + 1, val);
+        });
+    });
+}
+
+/* ---------------- SAVE ---------------- */
+function saveCell(row, col, value) {
+    post({
+        sheet: SHEET_NAME,
+        action: "update",
+        row,
+        col,
+        value,
+        key: WRITE_KEY
+    });
+}
+
+/* ---------------- POST ---------------- */
+function post(body) {
+    return fetch(API_URL, {
+        method: "POST",
+        headers: {"Content-Type":"text/plain"},
+        body: JSON.stringify(body)
+    });
+}
+
+/* ---------------- START ---------------- */
+loadData();
+setInterval(refreshData, 3000);
+
+</script>
+</body>
+</html>

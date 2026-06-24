@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <link rel="stylesheet" href="style.css">
+    <title>Discover</title>
+
+    <style>
+        .discover-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 20px;
+        }
+
+        .discover-card {
+            background: #1a1a1a;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1px solid #333;
+        }
+
+        .discover-card img {
+            width: 100%;
+            height: 330px;
+            object-fit: cover;
+            display: block;
+        }
+
+        .discover-info {
+            padding: 12px;
+        }
+
+        .discover-info h3 {
+            margin: 0 0 8px;
+            font-size: 18px;
+        }
+
+        .discover-meta {
+            color: #aaa;
+            font-size: 13px;
+            margin-bottom: 8px;
+        }
+
+        .discover-info p {
+            font-size: 14px;
+            line-height: 1.4;
+            color: #ddd;
+        }
+
+        .extra {
+            margin-top: 10px;
+            font-size: 12px;
+            color: #bbb;
+        }
+
+        .theme-banner {
+            margin-bottom: 20px;
+            padding: 10px 14px;
+            background: #111;
+            border: 1px solid #333;
+            border-radius: 6px;
+            color: #e50914;
+            font-weight: bold;
+        }
+
+        .search-box {
+            width: 100%;
+            max-width: 500px;
+            padding: 12px;
+            margin-bottom: 25px;
+            border-radius: 6px;
+            border: 1px solid #444;
+            background: #111;
+            color: white;
+            font-size: 16px;
+        }
+    </style>
+</head>
+
+<body>
+
+<header class="nav">
+    <h1 class="logo">Film Club 🎬</h1>
+
+    <nav>
+        <a href="index.html">Home</a>
+        <a href="movies.html">Movie List</a>
+        <a href="themes.html">Themes</a>
+        <a href="discover.html">Discover</a>
+        <a href="leaderboard.html">Leaderboard</a>
+        <a href="archive">Archive</a>
+    </nav>
+</header>
+
+<section class="row">
+    <h2>Discover Movies</h2>
+
+    <div id="theme-banner" class="theme-banner">Loading theme...</div>
+
+    <input
+        type="text"
+        id="search"
+        class="search-box"
+        placeholder="Search movies or a culprit behind the pick..."
+    >
+
+    <div id="discover-grid" class="discover-grid">
+        Loading...
+    </div>
+</section>
+
+<script>
+
+const API_URL = "https://script.google.com/macros/s/AKfycbyi8gzf6WY_BrCIQhd0DOM0qwPP17MjEe2V1BaVxidpo5EvMqgLWjkK38MLFX6zkiFF/exec";
+const OMDB_KEY = "f4f91679";
+
+let allMovies = [];
+let currentTheme = "";
+
+/* LOAD MOVIES */
+fetch(API_URL + "?sheet=" + encodeURIComponent("Movie List"))
+.then(r => r.json())
+.then(async data => {
+
+    let headers = [];
+    let rows = [];
+
+    if (data.headers && data.rows) {
+        headers = data.headers;
+        rows = data.rows;
+    } else {
+        headers = data[0];
+        rows = data.slice(1);
+    }
+
+    const movieIndex = headers.indexOf("Movie");
+    const themeIndex = headers.indexOf("Theme");
+    const suggestedIndex = headers.indexOf("Suggested By");
+    const commentsIndex = headers.indexOf("Comments");
+
+    if (movieIndex === -1) {
+        document.getElementById("discover-grid").innerHTML =
+            "Could not find Movie column.";
+        return;
+    }
+
+    // get theme (assume same for all rows, take last non-empty)
+    for (const r of rows) {
+        if (r[themeIndex]) currentTheme = r[themeIndex];
+    }
+
+    document.getElementById("theme-banner").innerText =
+        "This month's theme: " + currentTheme;
+
+    const movies = [...new Set(
+        rows.map(r => r[movieIndex]).filter(Boolean)
+    )];
+
+    const movieData = [];
+
+    for (const movie of movies) {
+
+        const row = rows.find(r => r[movieIndex] === movie) || [];
+
+        const suggestedBy = suggestedIndex !== -1 ? row[suggestedIndex] : "";
+        const comments = commentsIndex !== -1 ? row[commentsIndex] : "";
+
+        try {
+
+            const omdb = await fetch(
+                `https://www.omdbapi.com/?t=${encodeURIComponent(movie)}&apikey=${OMDB_KEY}`
+            ).then(r => r.json());
+
+            movieData.push({
+                title: omdb.Title || movie,
+                poster: (omdb.Poster && omdb.Poster !== "N/A") ? omdb.Poster : "",
+                plot: (omdb.Plot && omdb.Plot !== "N/A") ? omdb.Plot : "No description available.",
+                year: omdb.Year || "",
+                rating: omdb.imdbRating || "",
+                imdbID: omdb.imdbID || "",
+                suggestedBy,
+                comments
+            });
+
+        } catch (err) {
+            console.error(movie, err);
+        }
+    }
+
+    allMovies = movieData;
+    renderMovies(movieData);
+});
+
+
+/* RENDER */
+function renderMovies(movies) {
+
+    const grid = document.getElementById("discover-grid");
+
+    let html = "";
+
+    movies.forEach(movie => {
+
+        const imdbUrl = movie.imdbID
+            ? `https://www.imdb.com/title/${movie.imdbID}/`
+            : "#";
+
+        html += `
+            <a href="${imdbUrl}"
+               target="_blank"
+               style="text-decoration:none;color:inherit;">
+
+                <div class="discover-card">
+
+                    <img src="${movie.poster}" alt="${movie.title}">
+
+                    <div class="discover-info">
+
+                        <h3>${movie.title}</h3>
+
+                        <div class="discover-meta">
+                            ${movie.year}
+                            ${movie.rating ? ` • ⭐ ${movie.rating}` : ""}
+                        </div>
+
+                        <p>${movie.plot}</p>
+
+                        <div class="extra">
+                            <strong>Suggested By:</strong> ${movie.suggestedBy || "-"}
+                        </div>
+
+                        <div class="extra">
+                            <strong>Comments:</strong> ${movie.comments || "-"}
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </a>
+        `;
+    });
+
+    grid.innerHTML = html;
+}
+
+
+/* SEARCH (UPDATED) */
+document.getElementById("search")
+.addEventListener("input", function() {
+
+    const q = this.value.toLowerCase();
+
+    const filtered = allMovies.filter(movie =>
+        (movie.title && movie.title.toLowerCase().includes(q)) ||
+        (movie.suggestedBy && movie.suggestedBy.toLowerCase().includes(q))
+    );
+
+    renderMovies(filtered);
+});
+
+</script>
+
+</body>
+</html>

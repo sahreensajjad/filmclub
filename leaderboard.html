@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html>
+<head>
+<link rel="stylesheet" href="style.css">
+<title>Leaderboard</title>
+</head>
+
+<body>
+
+<header class="nav">
+  <h1 class="logo">MovieClub</h1>
+  <nav>
+    <a href="index.html">Home</a>
+    <a href="movies.html">Movie List</a>
+    <a href="suggest.html">Suggest</a>
+    <a href="leaderboard.html">Leaderboard</a>
+  </nav>
+</header>
+
+<section class="row">
+  <h2>Picky Rating Leaderboard 🧠</h2>
+  <div class="grid" id="leaderboard"></div>
+</section>
+
+<!-- Hall of Shame (UNCHANGED LOGIC STYLE) -->
+<section class="row">
+  <h2>Hall of Shame</h2>
+  <div class="grid" id="shame"></div>
+</section>
+
+<script>
+
+const API_URL = "https://script.google.com/macros/s/AKfycbxUysWGi4OIOdiuuGi8pk7OUEBFJCkXaItY9bRHpbgRlLFs3EMGJozvYXEQr6ZoEpdM/exec";
+
+/* ---------------- PICKY RATING ---------------- */
+
+function computePickyByColumn(rows) {
+
+    const START_COL = 2; // Column C
+    const END_COL = 23;   // Column X
+
+    const headers = rows[0];
+
+    const results = [];
+
+    for (let c = START_COL; c <= END_COL; c++) {
+
+        const name = headers[c];
+        if (!name) continue;
+
+        let total = 0;
+        let count = 0;
+
+        for (let r = 1; r < rows.length; r++) {
+
+            const val = parseFloat(rows[r][c]);
+
+            if (!isNaN(val)) {
+                total += val;
+                count++;
+            }
+        }
+
+        if (count === 0) continue;
+
+        const avg = total / count;
+        const pickyRating = 10 - avg;
+
+        results.push({
+            name,
+            pickyRating
+        });
+    }
+
+    return results;
+}
+
+
+/* ---------------- LOAD LEADERBOARD ---------------- */
+
+fetch(API_URL + "?sheet=" + encodeURIComponent("Movie Scoreboard"))
+.then(r => r.json())
+.then(data => {
+
+    const rows = data.rows || [];
+    const container = document.getElementById("leaderboard");
+
+    const people = computePickyByColumn(rows)
+        .sort((a, b) => b.pickyRating - a.pickyRating);
+
+    let html = "";
+
+    people.forEach(p => {
+
+        html += `
+        <div class="card">
+            <strong>${p.name}</strong>
+            <small>PickyRating: ${p.pickyRating.toFixed(2)}</small>
+        </div>`;
+    });
+
+    container.innerHTML = html;
+});
+
+
+/* ---------------- HALL OF SHAME (UNCHANGED STYLE LOGIC) ---------------- */
+
+fetch(API_URL + "?sheet=" + encodeURIComponent("Movie Scoreboard"))
+.then(r => r.json())
+.then(data => {
+
+    const rows = data.rows || [];
+
+    const NAME = 1; // Column B
+    const AVG = 24; // Column Y
+
+    const map = {};
+
+    for (let i = 1; i < rows.length; i++) {
+
+        const r = rows[i];
+
+        const name = r[NAME];
+        const score = parseFloat(r[AVG]);
+
+        if (!name || isNaN(score)) continue;
+
+        if (!map[name]) {
+            map[name] = { total: 0, count: 0 };
+        }
+
+        map[name].total += score;
+        map[name].count += 1;
+    }
+
+    const processed = Object.entries(map)
+        .map(([name, obj]) => ({
+            name,
+            avg: obj.total / obj.count
+        }))
+        .sort((a, b) => a.avg - b.avg);
+
+    let html = "";
+
+    processed.forEach(r => {
+
+        html += `
+        <div class="card">
+            <strong>${r.name}</strong>
+            <small>⭐ ${r.avg.toFixed(2)}</small>
+        </div>`;
+    });
+
+    document.getElementById("shame").innerHTML = html;
+});
+
+</script>
+
+</body>
+</html>
