@@ -1,71 +1,70 @@
 <!DOCTYPE html>
 <html>
 <head>
-<link rel="stylesheet" href="style.css">
-<title>Film Club</title>
+    <link rel="stylesheet" href="style.css">
+    <title>Film Club</title>
 
-<style>
-.card {
-    position: relative;
-    overflow: hidden;
-}
+    <style>
+        .card {
+            position: relative;
+            overflow: hidden;
+        }
 
-.roast-overlay {
-    position: absolute;
-    inset: 0;
-    background: rgba(0,0,0,0.85);
-    color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    padding: 12px;
-    opacity: 0;
-    transition: 0.2s ease;
-    font-size: 14px;
-    border-radius: 10px;
-}
+        .roast-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,0.85);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 12px;
+            opacity: 0;
+            transition: 0.2s ease;
+            font-size: 14px;
+            border-radius: 10px;
+        }
 
-.card:hover .roast-overlay {
-    opacity: 1;
-}
-</style>
-
+        .card:hover .roast-overlay {
+            opacity: 1;
+        }
+    </style>
 </head>
 
 <body>
 
 <header class="nav">
-  <h1 class="logo">Film Club🎬</h1>
-  <nav>
+    <h1 class="logo">Film Club🎬</h1>
+    <nav>
         <a href="index.html">Home</a>
         <a href="movies.html">Upcoming Fails</a>
         <a href="discover.html">Discover</a>
         <a href="leaderboard.html">Accountability Board</a>
         <a href="archive">It Made Sense at the Time</a>
-  </nav>
+    </nav>
 </header>
 
 <section class="hero">
-  <div class="hero-content">
-    <h2>Now Showing</h2>
-    <h1 id="current">Loading...</h1>
-  </div>
+    <div class="hero-content">
+        <h2>Now Showing</h2>
+        <h1 id="current">Loading...</h1>
+    </div>
 </section>
 
 <section class="row">
-  <h2>Monthly Themes</h2>
-  <div id="themes"></div>
+    <h2>Monthly Themes</h2>
+    <div id="themes"></div>
 </section>
 
 <section class="row">
-  <h2>Top Rated Films</h2>
-  <div class="grid" id="top"></div>
+    <h2>Top Rated Films</h2>
+    <div class="grid" id="top"></div>
 </section>
 
 <section class="row">
-  <h2>Hall of Shame</h2>
-  <div class="grid" id="shame"></div>
+    <h2>Hall of Shame</h2>
+    <div class="grid" id="shame"></div>
 </section>
 
 <script>
@@ -76,52 +75,47 @@ const OMDB_KEY = "f4f91679";
 /* ---------------- NOW SHOWING ---------------- */
 
 fetch(API_URL + "?sheet=" + encodeURIComponent("Current Selections"))
-.then(r => r.json())
-.then(data => {
+    .then(r => r.json())
+    .then(data => {
 
-    const rows = data.rows || [];
+        const rows = data.rows || [];
 
-    if (!rows.length) {
-        document.getElementById("current").innerText = "No data";
-        return;
-    }
+        if (!rows.length) {
+            document.getElementById("current").innerText = "No data";
+            return;
+        }
 
-    const last = rows[rows.length - 1];
-    const prev = rows[rows.length - 2];
+        const last = rows[rows.length - 1];
+        const prev = rows[rows.length - 2];
 
-    const lastTheme = last[1];
-    const lastMovie = last[2];
+        const lastTheme = last[1];
+        const lastMovie = last[2];
 
-    const prevTheme = prev ? prev[1] : null;
-    const prevMovie = prev ? prev[2] : null;
+        const prevTheme = prev ? prev[1] : null;
+        const prevMovie = prev ? prev[2] : null;
 
-    let output = "";
+        let output = "";
 
-    if (prev && lastTheme === prevTheme) {
-        output = `${prevMovie} and ${lastMovie}`;
-    } else {
-        output = lastMovie;
-    }
+        if (prev && lastTheme === prevTheme) {
+            output = `${prevMovie} and ${lastMovie}`;
+        } else {
+            output = lastMovie;
+        }
 
-    document.getElementById("current").innerText = output;
+        document.getElementById("current").innerText = output;
 
-    // -------- TRAILER (FIXED) --------
+        // -------- TRAILER --------
 
-    const headers = rows[0] || [];
+        const findYT = (row) => {
+            return row.find(cell =>
+                typeof cell === "string" &&
+                (cell.includes("youtube.com") || cell.includes("youtu.be"))
+            );
+        };
 
-    const trailerCol = headers.findIndex(
-        h => String(h).trim().toLowerCase() === "trailer"
-    );
+        const trailer = findYT(last);
 
-    if (trailerCol !== -1) {
-
-        const trailerRow = rows.find(
-            (row, i) => i > 0 && row[trailerCol]
-        );
-
-        if (trailerRow) {
-
-            const trailer = trailerRow[trailerCol];
+        if (trailer) {
 
             let videoId = "";
 
@@ -145,224 +139,223 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Current Selections"))
                 document.querySelector(".hero-content").appendChild(iframe);
             }
         }
-    }
-});
+    });
 
 
 /* ---------------- MONTHLY THEMES ---------------- */
 
 fetch(API_URL + "?sheet=" + encodeURIComponent("Current Selections"))
-.then(r => r.json())
-.then(async data => {
+    .then(r => r.json())
+    .then(async data => {
 
-    const rows = data.rows || [];
-    const container = document.getElementById("themes");
+        const rows = data.rows || [];
+        const container = document.getElementById("themes");
 
-    let html = "";
-    const cache = {};
+        let html = "";
+        const cache = {};
 
-    const manualPosters = {
-        "I'm Not a Robot": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRdDmYqyUoZkMQ9I1NsLB8SOeObCYRtPpiNog&s",
-        "Love Death & Robots": "https://m.media-amazon.com/images/M/MV5BMDQxMzIzN2ItYzYzOC00Zjc3LTkyZGEtOTcyZGY5OWEyZTQ5XkEyXkFqcGc@._V1_.jpg"
-    };
-
-    for (let i = 1; i < rows.length; i++) {
-
-        const r = rows[i];
-
-        const theme = r[1];
-        const movie = r[2];
-        const imdbRef = (r[r.length - 1] || "").trim();
-
-        if (!theme || !movie) continue;
-
-        let poster = cache[movie];
-        let imdbID = "";
-
-        try {
-
-            let omdb;
-
-            if (imdbRef) {
-                omdb = await fetch(
-                    `https://www.omdbapi.com/?i=${encodeURIComponent(imdbRef)}&apikey=${OMDB_KEY}`
-                ).then(r => r.json());
-            } else {
-                omdb = await fetch(
-                    `https://www.omdbapi.com/?t=${encodeURIComponent(movie)}&apikey=${OMDB_KEY}`
-                ).then(r => r.json());
-            }
-
-            poster =
-                manualPosters[movie] ||
-                (omdb.Poster && omdb.Poster !== "N/A" ? omdb.Poster : "");
-
-            imdbID = omdb.imdbID || imdbRef || "";
-            cache[movie] = poster;
-
-        } catch (e) {
-            poster = "";
-        }
-
-        const imdbUrl = imdbID
-            ? `https://www.imdb.com/title/${imdbID}/`
-            : `https://www.imdb.com/find?q=${encodeURIComponent(movie)}`;
-
-        html += `
-        <a href="${imdbUrl}" target="_blank" style="text-decoration:none;color:inherit;">
-            <div class="theme-card">
-                <img src="${poster}" alt="${theme}">
-                <div class="theme-info">
-                    <strong>${theme}</strong>
-                </div>
-            </div>
-        </a>`;
-    }
-
-    container.innerHTML = html;
-});
-
-
-/* ---------------- TOP RATED ---------------- */
-
-fetch(API_URL + "?sheet=" + encodeURIComponent("Movie Scoreboard"))
-.then(r => r.json())
-.then(async data => {
-
-    const rows = data.rows || [];
-    const container = document.getElementById("top");
-
-    const MOVIE = 0;
-    const AVG = rows[0].length - 2;
-    const IMDB = rows[0].length - 1;
-
-    const cache = {};
-
-    const clean = rows
-        .slice(1)
-        .filter(r => r[MOVIE] && r[AVG])
-        .sort((a, b) => parseFloat(b[AVG]) - parseFloat(a[AVG]));
-
-    let html = "";
-
-    for (const r of clean) {
-
-        const movie = r[MOVIE];
-        const avg = parseFloat(r[AVG]);
-        const imdbRef = (r[IMDB] || "").trim();
-
-        let poster = cache[movie];
-        let imdbID = "";
-
-        try {
-
-            let omdb;
-
-            if (imdbRef) {
-                omdb = await fetch(
-                    `https://www.omdbapi.com/?i=${encodeURIComponent(imdbRef)}&apikey=${OMDB_KEY}`
-                ).then(r => r.json());
-            } else {
-                omdb = await fetch(
-                    `https://www.omdbapi.com/?t=${encodeURIComponent(movie)}&apikey=${OMDB_KEY}`
-                ).then(r => r.json());
-            }
-
-            poster = (omdb.Poster && omdb.Poster !== "N/A") ? omdb.Poster : "";
-            imdbID = omdb.imdbID || imdbRef || "";
-            cache[movie] = poster;
-
-        } catch (e) {
-            poster = "";
-        }
-
-        const imdbUrl = imdbID
-            ? `https://www.imdb.com/title/${imdbID}/`
-            : `https://www.imdb.com/find?q=${encodeURIComponent(movie)}`;
-
-        let roast = "";
-
-        if (avg >= 9.2) roast = "Cinema. We may never recover from this.";
-        else if (avg >= 9.0) roast = "Basically flawless.";
-        else if (avg >= 8.5) roast = "Elite territory.";
-        else if (avg >= 8.0) roast = "Solid. No notes.";
-        else if (avg >= 7.5) roast = "Pretty decent watch.";
-        else if (avg >= 7.0) roast = "It exists.";
-        else if (avg >= 6.5) roast = "Regret is part of the experience.";
-        else if (avg >= 6.0) roast = "We should apologise to ourselves";
-        else if (avg >= 5.5) roast = "Why God Why?";
-        else roast = "Self-harm";
-
-        html += `
-        <a href="${imdbUrl}" target="_blank" style="text-decoration:none;color:inherit;">
-            <div class="card">
-                <img src="${poster}" alt="${movie}">
-                <strong>${movie}</strong>
-                <small>⭐ ${avg}</small>
-
-                <div class="roast-overlay">
-                    ${roast}
-                </div>
-            </div>
-        </a>`;
-    }
-
-    container.innerHTML = html;
-});
-
-
-/* ---------------- HALL OF SHAME ---------------- */
-
-fetch(API_URL + "?sheet=" + encodeURIComponent("Movie Scoreboard"))
-.then(r => r.json())
-.then(data => {
-
-    const rows = data.rows || [];
-
-    const processed = (function(rows) {
-
-        const NAME = 1;
-        const AVG = 24;
-
-        const map = {};
+        const manualPosters = {
+            "I'm Not a Robot": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRdDmYqyUoZkMQ9I1NsLB8SOeObCYRtPpiNog&s",
+            "Love Death & Robots": "https://m.media-amazon.com/images/M/MV5BMDQxMzIzN2ItYzYzOC00Zjc3LTkyZGEtOTcyZGY5OWEyZTQ5XkEyXkFqcGc@._V1_.jpg"
+        };
 
         for (let i = 1; i < rows.length; i++) {
 
             const r = rows[i];
 
-            const name = r[NAME];
-            const score = parseFloat(r[AVG]);
+            const theme = r[1];
+            const movie = r[2];
+            const imdbRef = (r[r.length - 1] || "").trim();
 
-            if (!name || isNaN(score)) continue;
+            if (!theme || !movie) continue;
 
-            if (!map[name]) {
-                map[name] = { total: 0, count: 0 };
+            let poster = cache[movie];
+            let imdbID = "";
+
+            try {
+
+                let omdb;
+
+                if (imdbRef) {
+                    omdb = await fetch(
+                        `https://www.omdbapi.com/?i=${encodeURIComponent(imdbRef)}&apikey=${OMDB_KEY}`
+                    ).then(r => r.json());
+                } else {
+                    omdb = await fetch(
+                        `https://www.omdbapi.com/?t=${encodeURIComponent(movie)}&apikey=${OMDB_KEY}`
+                    ).then(r => r.json());
+                }
+
+                poster =
+                    manualPosters[movie] ||
+                    (omdb.Poster && omdb.Poster !== "N/A" ? omdb.Poster : "");
+
+                imdbID = omdb.imdbID || imdbRef || "";
+                cache[movie] = poster;
+
+            } catch (e) {
+                poster = "";
             }
 
-            map[name].total += score;
-            map[name].count += 1;
+            const imdbUrl = imdbID
+                ? `https://www.imdb.com/title/${imdbID}/`
+                : `https://www.imdb.com/find?q=${encodeURIComponent(movie)}`;
+
+            html += `
+                <a href="${imdbUrl}" target="_blank" style="text-decoration:none;color:inherit;">
+                    <div class="theme-card">
+                        <img src="${poster}" alt="${theme}">
+                        <div class="theme-info">
+                            <strong>${theme}</strong>
+                        </div>
+                    </div>
+                </a>`;
         }
 
-        return Object.entries(map).map(([name, obj]) => ({
-            name,
-            avg: obj.total / obj.count
-        }));
-
-    })(rows).sort((a, b) => a.avg - b.avg);
-
-    let html = "";
-
-    processed.forEach(r => {
-
-        html += `
-        <div class="card">
-            <strong>${r.name}</strong>
-            <small>⭐ ${r.avg.toFixed(2)}</small>
-        </div>`;
+        container.innerHTML = html;
     });
 
-    document.getElementById("shame").innerHTML = html;
-});
+
+/* ---------------- TOP RATED ---------------- */
+
+fetch(API_URL + "?sheet=" + encodeURIComponent("Movie Scoreboard"))
+    .then(r => r.json())
+    .then(async data => {
+
+        const rows = data.rows || [];
+        const container = document.getElementById("top");
+
+        const MOVIE = 0;
+        const AVG = rows[0].length - 2;
+        const IMDB = rows[0].length - 1;
+
+        const cache = {};
+
+        const clean = rows
+            .slice(1)
+            .filter(r => r[MOVIE] && r[AVG])
+            .sort((a, b) => parseFloat(b[AVG]) - parseFloat(a[AVG]));
+
+        let html = "";
+
+        for (const r of clean) {
+
+            const movie = r[MOVIE];
+            const avg = parseFloat(r[AVG]);
+            const imdbRef = (r[IMDB] || "").trim();
+
+            let poster = cache[movie];
+            let imdbID = "";
+
+            try {
+
+                let omdb;
+
+                if (imdbRef) {
+                    omdb = await fetch(
+                        `https://www.omdbapi.com/?i=${encodeURIComponent(imdbRef)}&apikey=${OMDB_KEY}`
+                    ).then(r => r.json());
+                } else {
+                    omdb = await fetch(
+                        `https://www.omdbapi.com/?t=${encodeURIComponent(movie)}&apikey=${OMDB_KEY}`
+                    ).then(r => r.json());
+                }
+
+                poster = (omdb.Poster && omdb.Poster !== "N/A") ? omdb.Poster : "";
+                imdbID = omdb.imdbID || imdbRef || "";
+                cache[movie] = poster;
+
+            } catch (e) {
+                poster = "";
+            }
+
+            const imdbUrl = imdbID
+                ? `https://www.imdb.com/title/${imdbID}/`
+                : `https://www.imdb.com/find?q=${encodeURIComponent(movie)}`;
+
+            let roast = "";
+
+            if (avg >= 9.2) roast = "Cinema. We may never recover from this.";
+            else if (avg >= 9.0) roast = "Basically flawless.";
+            else if (avg >= 8.5) roast = "Elite territory.";
+            else if (avg >= 8.0) roast = "Solid. No notes.";
+            else if (avg >= 7.5) roast = "Pretty decent watch.";
+            else if (avg >= 7.0) roast = "It exists.";
+            else if (avg >= 6.5) roast = "Regret is part of the experience.";
+            else if (avg >= 6.0) roast = "We should apologise to ourselves";
+            else if (avg >= 5.5) roast = "Why God Why?";
+            else roast = "Self-harm";
+
+            html += `
+                <a href="${imdbUrl}" target="_blank" style="text-decoration:none;color:inherit;">
+                    <div class="card">
+                        <img src="${poster}" alt="${movie}">
+                        <strong>${movie}</strong>
+                        <small>⭐ ${avg}</small>
+
+                        <div class="roast-overlay">
+                            ${roast}
+                        </div>
+                    </div>
+                </a>`;
+        }
+
+        container.innerHTML = html;
+    });
+
+
+/* ---------------- HALL OF SHAME ---------------- */
+
+fetch(API_URL + "?sheet=" + encodeURIComponent("Movie Scoreboard"))
+    .then(r => r.json())
+    .then(data => {
+
+        const rows = data.rows || [];
+
+        const processed = (function (rows) {
+
+            const NAME = 1;
+            const AVG = 24;
+
+            const map = {};
+
+            for (let i = 1; i < rows.length; i++) {
+
+                const r = rows[i];
+
+                const name = r[NAME];
+                const score = parseFloat(r[AVG]);
+
+                if (!name || isNaN(score)) continue;
+
+                if (!map[name]) {
+                    map[name] = { total: 0, count: 0 };
+                }
+
+                map[name].total += score;
+                map[name].count += 1;
+            }
+
+            return Object.entries(map).map(([name, obj]) => ({
+                name,
+                avg: obj.total / obj.count
+            }));
+
+        })(rows).sort((a, b) => a.avg - b.avg);
+
+        let html = "";
+
+        processed.forEach(r => {
+
+            html += `
+                <div class="card">
+                    <strong>${r.name}</strong>
+                    <small>⭐ ${r.avg.toFixed(2)}</small>
+                </div>`;
+        });
+
+        document.getElementById("shame").innerHTML = html;
+    });
 
 </script>
 
