@@ -104,6 +104,39 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Current Selections"))
     }
 
     document.getElementById("current").innerText = output;
+
+    // -------- TRAILER --------
+    const findYT = (row) => {
+        return row.find(cell =>
+            typeof cell === "string" &&
+            (cell.includes("youtube.com") || cell.includes("youtu.be"))
+        );
+    };
+
+    const trailer = findYT(last);
+
+    if (trailer) {
+        let videoId = "";
+
+        if (trailer.includes("youtu.be/")) {
+            videoId = trailer.split("youtu.be/")[1].split("?")[0];
+        } else if (trailer.includes("v=")) {
+            videoId = trailer.split("v=")[1].split("&")[0];
+        }
+
+        if (videoId) {
+            const iframe = document.createElement("iframe");
+            iframe.width = "560";
+            iframe.height = "315";
+            iframe.src = `https://www.youtube.com/embed/${videoId}`;
+            iframe.frameBorder = "0";
+            iframe.allow =
+                "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture";
+            iframe.allowFullscreen = true;
+
+            document.querySelector(".hero-content").appendChild(iframe);
+        }
+    }
 });
 
 
@@ -124,7 +157,9 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Current Selections"))
         "Love Death & Robots": "https://m.media-amazon.com/images/M/MV5BMDQxMzIzN2ItYzYzOC00Zjc3LTkyZGEtOTcyZGY5OWEyZTQ5XkEyXkFqcGc@._V1_.jpg"
     };
 
-    for (const r of rows) {
+    for (let i = 1; i < rows.length; i++) {
+
+        const r = rows[i];
 
         const theme = r[1];
         const movie = r[2];
@@ -179,7 +214,7 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Current Selections"))
 });
 
 
-/* ---------------- TOP RATED (FIXED ONLY FOR IMDB) ---------------- */
+/* ---------------- TOP RATED ---------------- */
 
 fetch(API_URL + "?sheet=" + encodeURIComponent("Movie Scoreboard"))
 .then(r => r.json())
@@ -189,8 +224,8 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Movie Scoreboard"))
     const container = document.getElementById("top");
 
     const MOVIE = 0;
-    const AVG = rows[0].length - 2;      // second last column
-    const IMDB = rows[0].length - 1;     // last column
+    const AVG = rows[0].length - 2;
+    const IMDB = rows[0].length - 1;
 
     const cache = {};
 
@@ -267,7 +302,7 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Movie Scoreboard"))
 });
 
 
-/* ---------------- HALL OF SHAME (UNCHANGED - ORIGINAL LOGIC) ---------------- */
+/* ---------------- HALL OF SHAME ---------------- */
 
 fetch(API_URL + "?sheet=" + encodeURIComponent("Movie Scoreboard"))
 .then(r => r.json())
