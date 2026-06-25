@@ -136,6 +136,7 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Movie List"))
     const themeIndex = headers.indexOf("Theme");
     const suggestedIndex = headers.indexOf("Suggested By");
     const commentsIndex = headers.indexOf("Comments");
+    const imdbReferenceIndex = headers.indexOf("Imdb Reference");
 
     if (movieIndex === -1) {
         document.getElementById("discover-grid").innerHTML =
@@ -143,7 +144,7 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Movie List"))
         return;
     }
 
-    // get theme (assume same for all rows, take last non-empty)
+    // theme
     for (const r of rows) {
         if (r[themeIndex]) currentTheme = r[themeIndex];
     }
@@ -163,12 +164,24 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Movie List"))
 
         const suggestedBy = suggestedIndex !== -1 ? row[suggestedIndex] : "";
         const comments = commentsIndex !== -1 ? row[commentsIndex] : "";
+        const imdbReference =
+            imdbReferenceIndex !== -1
+                ? (row[imdbReferenceIndex] || "").trim()
+                : "";
 
         try {
 
-            const omdb = await fetch(
-                `https://www.omdbapi.com/?t=${encodeURIComponent(movie)}&apikey=${OMDB_KEY}`
-            ).then(r => r.json());
+            let omdb;
+
+            if (imdbReference) {
+                omdb = await fetch(
+                    `https://www.omdbapi.com/?i=${encodeURIComponent(imdbReference)}&apikey=${OMDB_KEY}`
+                ).then(r => r.json());
+            } else {
+                omdb = await fetch(
+                    `https://www.omdbapi.com/?t=${encodeURIComponent(movie)}&apikey=${OMDB_KEY}`
+                ).then(r => r.json());
+            }
 
             movieData.push({
                 title: omdb.Title || movie,
@@ -176,7 +189,7 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Movie List"))
                 plot: (omdb.Plot && omdb.Plot !== "N/A") ? omdb.Plot : "No description available.",
                 year: omdb.Year || "",
                 rating: omdb.imdbRating || "",
-                imdbID: omdb.imdbID || "",
+                imdbID: omdb.imdbID || imdbReference || "",
                 suggestedBy,
                 comments
             });
@@ -244,7 +257,7 @@ function renderMovies(movies) {
 }
 
 
-/* SEARCH (UPDATED) */
+/* SEARCH */
 document.getElementById("search")
 .addEventListener("input", function() {
 
