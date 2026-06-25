@@ -95,9 +95,13 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Current Selections"))
     const prevTheme = prev ? prev[1] : null;
     const prevMovie = prev ? prev[2] : null;
 
-    let output = prev && lastTheme === prevTheme
-        ? `${prevMovie} and ${lastMovie}`
-        : lastMovie;
+    let output = "";
+
+    if (prev && lastTheme === prevTheme) {
+        output = `${prevMovie} and ${lastMovie}`;
+    } else {
+        output = lastMovie;
+    }
 
     document.getElementById("current").innerText = output;
 });
@@ -112,8 +116,8 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Current Selections"))
     const rows = data.rows || [];
     const container = document.getElementById("themes");
 
-    const cache = {};
     let html = "";
+    const cache = {};
 
     const manualPosters = {
         "I'm Not a Robot": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRdDmYqyUoZkMQ9I1NsLB8SOeObCYRtPpiNog&s",
@@ -122,10 +126,9 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Current Selections"))
 
     for (const r of rows) {
 
-        const month = r[0];
         const theme = r[1];
         const movie = r[2];
-        const imdbRef = (r[r.length - 1] || "").trim(); // IMDb always last column
+        const imdbRef = (r[r.length - 1] || "").trim();
 
         if (!theme || !movie) continue;
 
@@ -146,11 +149,11 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Current Selections"))
                 ).then(r => r.json());
             }
 
-            poster = manualPosters[movie] ||
-                     (omdb.Poster && omdb.Poster !== "N/A" ? omdb.Poster : "");
+            poster =
+                manualPosters[movie] ||
+                (omdb.Poster && omdb.Poster !== "N/A" ? omdb.Poster : "");
 
             imdbID = omdb.imdbID || imdbRef || "";
-
             cache[movie] = poster;
 
         } catch (e) {
@@ -176,7 +179,7 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Current Selections"))
 });
 
 
-/* ---------------- TOP RATED ---------------- */
+/* ---------------- TOP RATED (FIXED ONLY FOR IMDB) ---------------- */
 
 fetch(API_URL + "?sheet=" + encodeURIComponent("Movie Scoreboard"))
 .then(r => r.json())
@@ -185,20 +188,24 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Movie Scoreboard"))
     const rows = data.rows || [];
     const container = document.getElementById("top");
 
-    let html = "";
+    const MOVIE = 0;
+    const AVG = rows[0].length - 2;      // second last column
+    const IMDB = rows[0].length - 1;     // last column
 
     const cache = {};
 
     const clean = rows
         .slice(1)
-        .filter(r => r[0] && r[r.length - 2] !== undefined && r[r.length - 2] !== "")
-        .sort((a, b) => parseFloat(b[b.length - 2]) - parseFloat(a[a.length - 2]));
+        .filter(r => r[MOVIE] && r[AVG])
+        .sort((a, b) => parseFloat(b[AVG]) - parseFloat(a[AVG]));
+
+    let html = "";
 
     for (const r of clean) {
 
-        const movie = r[0];
-        const avg = parseFloat(r[r.length - 2]);
-        const imdbRef = (r[r.length - 1] || "").trim();
+        const movie = r[MOVIE];
+        const avg = parseFloat(r[AVG]);
+        const imdbRef = (r[IMDB] || "").trim();
 
         let poster = cache[movie];
         let imdbID = "";
@@ -219,7 +226,6 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Movie Scoreboard"))
 
             poster = (omdb.Poster && omdb.Poster !== "N/A") ? omdb.Poster : "";
             imdbID = omdb.imdbID || imdbRef || "";
-
             cache[movie] = poster;
 
         } catch (e) {
@@ -261,7 +267,7 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Movie Scoreboard"))
 });
 
 
-/* ---------------- HALL OF SHAME ---------------- */
+/* ---------------- HALL OF SHAME (UNCHANGED - ORIGINAL LOGIC) ---------------- */
 
 fetch(API_URL + "?sheet=" + encodeURIComponent("Movie Scoreboard"))
 .then(r => r.json())
@@ -269,31 +275,41 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Movie Scoreboard"))
 
     const rows = data.rows || [];
 
-    const map = {};
+    const processed = (function(rows) {
 
-    for (const r of rows.slice(1)) {
+        const NAME = 1;
+        const AVG = 24;
 
-        const name = r[0];
-        const avg = parseFloat(r[r.length - 2]);
+        const map = {};
 
-        if (!name || isNaN(avg)) continue;
+        for (let i = 1; i < rows.length; i++) {
 
-        if (!map[name]) map[name] = { total: 0, count: 0 };
+            const r = rows[i];
 
-        map[name].total += avg;
-        map[name].count++;
-    }
+            const name = r[NAME];
+            const score = parseFloat(r[AVG]);
 
-    const processed = Object.entries(map)
-        .map(([name, v]) => ({
+            if (!name || isNaN(score)) continue;
+
+            if (!map[name]) {
+                map[name] = { total: 0, count: 0 };
+            }
+
+            map[name].total += score;
+            map[name].count += 1;
+        }
+
+        return Object.entries(map).map(([name, obj]) => ({
             name,
-            avg: v.total / v.count
-        }))
-        .sort((a, b) => a.avg - b.avg);
+            avg: obj.total / obj.count
+        }));
+
+    })(rows).sort((a, b) => a.avg - b.avg);
 
     let html = "";
 
     processed.forEach(r => {
+
         html += `
         <div class="card">
             <strong>${r.name}</strong>
