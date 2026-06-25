@@ -3,10 +3,8 @@
 <head>
 <link rel="stylesheet" href="style.css">
 <title>Film Club</title>
- 
-<style>
-/* 🔥 ROAST HOVER SYSTEM ONLY FOR TOP RATED */
 
+<style>
 .card {
     position: relative;
     overflow: hidden;
@@ -48,7 +46,6 @@
   </nav>
 </header>
 
-<!-- HERO -->
 <section class="hero">
   <div class="hero-content">
     <h2>Now Showing</h2>
@@ -56,19 +53,16 @@
   </div>
 </section>
 
-<!-- THEMES -->
 <section class="row">
   <h2>Monthly Themes</h2>
   <div id="themes"></div>
 </section>
 
-<!-- TOP RATED -->
 <section class="row">
   <h2>Top Rated Films</h2>
   <div class="grid" id="top"></div>
 </section>
 
-<!-- HALL OF SHAME -->
 <section class="row">
   <h2>Hall of Shame</h2>
   <div class="grid" id="shame"></div>
@@ -125,6 +119,13 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Current Selections"))
     let html = "";
     const cache = {};
 
+    const IMDB_COL = 3; // adjust if needed
+
+    const manualPosters = {
+        "I'm Not a Robot": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRdDmYqyUoZkMQ9I1NsLB8SOeObCYRtPpiNog&s",
+        "Love Death & Robots": "https://m.media-amazon.com/images/M/MV5BMDQxMzIzN2ItYzYzOC00Zjc3LTkyZGEtOTcyZGY5OWEyZTQ5XkEyXkFqcGc@._V1_.jpg"
+    };
+
     for (let i = 0; i < rows.length; i++) {
 
         const r = rows[i];
@@ -132,6 +133,7 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Current Selections"))
         const month = r[0];
         const theme = r[1];
         const movie = r[2];
+        const imdbRef = (r[IMDB_COL] || "").trim();
 
         if (month === "Month" && theme === "Theme" && movie === "Voted movies") continue;
         if (!theme || !movie) continue;
@@ -139,20 +141,24 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Current Selections"))
         let poster = cache[movie];
         let imdbID = "";
 
-        const manualPosters = {
-            "I'm Not a Robot": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRdDmYqyUoZkMQ9I1NsLB8SOeObCYRtPpiNog&s",
-            "Love Death & Robots": "https://m.media-amazon.com/images/M/MV5BMDQxMzIzN2ItYzYzOC00Zjc3LTkyZGEtOTcyZGY5OWEyZTQ5XkEyXkFqcGc@._V1_.jpg"
-        };
-
         if (manualPosters[movie]) {
             poster = manualPosters[movie];
         }
 
         if (!poster) {
             try {
-                const omdb = await fetch(
-                    `https://www.omdbapi.com/?t=${encodeURIComponent(movie)}&apikey=${OMDB_KEY}`
-                ).then(r => r.json());
+
+                let omdb;
+
+                if (imdbRef) {
+                    omdb = await fetch(
+                        `https://www.omdbapi.com/?i=${encodeURIComponent(imdbRef)}&apikey=${OMDB_KEY}`
+                    ).then(r => r.json());
+                } else {
+                    omdb = await fetch(
+                        `https://www.omdbapi.com/?t=${encodeURIComponent(movie)}&apikey=${OMDB_KEY}`
+                    ).then(r => r.json());
+                }
 
                 poster = (omdb.Poster && omdb.Poster !== "N/A") ? omdb.Poster : "";
                 imdbID = omdb.imdbID || "";
@@ -192,6 +198,7 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Movie Scoreboard"))
     const container = document.getElementById("top");
 
     const MOVIE = 0;
+    const IMDB_COL = 1; // adjust if needed
     const AVG = 24;
 
     const cache = {};
@@ -206,6 +213,7 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Movie Scoreboard"))
     for (const r of clean) {
 
         const movie = r[MOVIE];
+        const imdbRef = (r[IMDB_COL] || "").trim();
         const avg = parseFloat(r[AVG]);
 
         let poster = cache[movie];
@@ -213,12 +221,21 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Movie Scoreboard"))
 
         if (!poster) {
             try {
-                const omdb = await fetch(
-                    `https://www.omdbapi.com/?t=${encodeURIComponent(movie)}&apikey=${OMDB_KEY}`
-                ).then(r => r.json());
+
+                let omdb;
+
+                if (imdbRef) {
+                    omdb = await fetch(
+                        `https://www.omdbapi.com/?i=${encodeURIComponent(imdbRef)}&apikey=${OMDB_KEY}`
+                    ).then(r => r.json());
+                } else {
+                    omdb = await fetch(
+                        `https://www.omdbapi.com/?t=${encodeURIComponent(movie)}&apikey=${OMDB_KEY}`
+                    ).then(r => r.json());
+                }
 
                 poster = (omdb.Poster && omdb.Poster !== "N/A") ? omdb.Poster : "";
-                imdbID = omdb.imdbID || "";
+                imdbID = omdb.imdbID || imdbRef || "";
                 cache[movie] = poster;
 
             } catch (e) {
