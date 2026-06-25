@@ -95,13 +95,9 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Current Selections"))
     const prevTheme = prev ? prev[1] : null;
     const prevMovie = prev ? prev[2] : null;
 
-    let output = "";
-
-    if (prev && lastTheme === prevTheme) {
-        output = `${prevMovie} and ${lastMovie}`;
-    } else {
-        output = lastMovie;
-    }
+    let output = prev && lastTheme === prevTheme
+        ? `${prevMovie} and ${lastMovie}`
+        : lastMovie;
 
     document.getElementById("current").innerText = output;
 });
@@ -116,57 +112,49 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Current Selections"))
     const rows = data.rows || [];
     const container = document.getElementById("themes");
 
-    let html = "";
     const cache = {};
-
-    const IMDB_COL = 3; // adjust if needed
+    let html = "";
 
     const manualPosters = {
         "I'm Not a Robot": "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRdDmYqyUoZkMQ9I1NsLB8SOeObCYRtPpiNog&s",
         "Love Death & Robots": "https://m.media-amazon.com/images/M/MV5BMDQxMzIzN2ItYzYzOC00Zjc3LTkyZGEtOTcyZGY5OWEyZTQ5XkEyXkFqcGc@._V1_.jpg"
     };
 
-    for (let i = 0; i < rows.length; i++) {
-
-        const r = rows[i];
+    for (const r of rows) {
 
         const month = r[0];
         const theme = r[1];
         const movie = r[2];
-        const imdbRef = (r[IMDB_COL] || "").trim();
+        const imdbRef = (r[r.length - 1] || "").trim(); // IMDb always last column
 
-        if (month === "Month" && theme === "Theme" && movie === "Voted movies") continue;
         if (!theme || !movie) continue;
 
         let poster = cache[movie];
         let imdbID = "";
 
-        if (manualPosters[movie]) {
-            poster = manualPosters[movie];
-        }
+        try {
 
-        if (!poster) {
-            try {
+            let omdb;
 
-                let omdb;
-
-                if (imdbRef) {
-                    omdb = await fetch(
-                        `https://www.omdbapi.com/?i=${encodeURIComponent(imdbRef)}&apikey=${OMDB_KEY}`
-                    ).then(r => r.json());
-                } else {
-                    omdb = await fetch(
-                        `https://www.omdbapi.com/?t=${encodeURIComponent(movie)}&apikey=${OMDB_KEY}`
-                    ).then(r => r.json());
-                }
-
-                poster = (omdb.Poster && omdb.Poster !== "N/A") ? omdb.Poster : "";
-                imdbID = omdb.imdbID || "";
-                cache[movie] = poster;
-
-            } catch (e) {
-                poster = "";
+            if (imdbRef) {
+                omdb = await fetch(
+                    `https://www.omdbapi.com/?i=${encodeURIComponent(imdbRef)}&apikey=${OMDB_KEY}`
+                ).then(r => r.json());
+            } else {
+                omdb = await fetch(
+                    `https://www.omdbapi.com/?t=${encodeURIComponent(movie)}&apikey=${OMDB_KEY}`
+                ).then(r => r.json());
             }
+
+            poster = manualPosters[movie] ||
+                     (omdb.Poster && omdb.Poster !== "N/A" ? omdb.Poster : "");
+
+            imdbID = omdb.imdbID || imdbRef || "";
+
+            cache[movie] = poster;
+
+        } catch (e) {
+            poster = "";
         }
 
         const imdbUrl = imdbID
@@ -188,7 +176,7 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Current Selections"))
 });
 
 
-/* ---------------- TOP RATED + ROAST SYSTEM ---------------- */
+/* ---------------- TOP RATED ---------------- */
 
 fetch(API_URL + "?sheet=" + encodeURIComponent("Movie Scoreboard"))
 .then(r => r.json())
@@ -197,50 +185,45 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Movie Scoreboard"))
     const rows = data.rows || [];
     const container = document.getElementById("top");
 
-    const MOVIE = 0;
-    const IMDB_COL = 1; // adjust if needed
-    const AVG = 24;
+    let html = "";
 
     const cache = {};
 
     const clean = rows
         .slice(1)
-        .filter(r => r[MOVIE] && r[AVG] !== "" && r[AVG] !== undefined)
-        .sort((a, b) => parseFloat(b[AVG]) - parseFloat(a[AVG]));
-
-    let html = "";
+        .filter(r => r[0] && r[r.length - 2] !== undefined && r[r.length - 2] !== "")
+        .sort((a, b) => parseFloat(b[b.length - 2]) - parseFloat(a[a.length - 2]));
 
     for (const r of clean) {
 
-        const movie = r[MOVIE];
-        const imdbRef = (r[IMDB_COL] || "").trim();
-        const avg = parseFloat(r[AVG]);
+        const movie = r[0];
+        const avg = parseFloat(r[r.length - 2]);
+        const imdbRef = (r[r.length - 1] || "").trim();
 
         let poster = cache[movie];
         let imdbID = "";
 
-        if (!poster) {
-            try {
+        try {
 
-                let omdb;
+            let omdb;
 
-                if (imdbRef) {
-                    omdb = await fetch(
-                        `https://www.omdbapi.com/?i=${encodeURIComponent(imdbRef)}&apikey=${OMDB_KEY}`
-                    ).then(r => r.json());
-                } else {
-                    omdb = await fetch(
-                        `https://www.omdbapi.com/?t=${encodeURIComponent(movie)}&apikey=${OMDB_KEY}`
-                    ).then(r => r.json());
-                }
-
-                poster = (omdb.Poster && omdb.Poster !== "N/A") ? omdb.Poster : "";
-                imdbID = omdb.imdbID || imdbRef || "";
-                cache[movie] = poster;
-
-            } catch (e) {
-                poster = "";
+            if (imdbRef) {
+                omdb = await fetch(
+                    `https://www.omdbapi.com/?i=${encodeURIComponent(imdbRef)}&apikey=${OMDB_KEY}`
+                ).then(r => r.json());
+            } else {
+                omdb = await fetch(
+                    `https://www.omdbapi.com/?t=${encodeURIComponent(movie)}&apikey=${OMDB_KEY}`
+                ).then(r => r.json());
             }
+
+            poster = (omdb.Poster && omdb.Poster !== "N/A") ? omdb.Poster : "";
+            imdbID = omdb.imdbID || imdbRef || "";
+
+            cache[movie] = poster;
+
+        } catch (e) {
+            poster = "";
         }
 
         const imdbUrl = imdbID
@@ -250,15 +233,14 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Movie Scoreboard"))
         let roast = "";
 
         if (avg >= 9.2) roast = "Cinema. We may never recover from this.";
-        else if (avg >= 9.0) roast = "Basically flawless. Annoyingly good.";
-        else if (avg >= 8.5) roast = "Elite territory. Someone had taste.";
+        else if (avg >= 9.0) roast = "Basically flawless.";
+        else if (avg >= 8.5) roast = "Elite territory.";
         else if (avg >= 8.0) roast = "Solid. No notes.";
         else if (avg >= 7.5) roast = "Pretty decent watch.";
         else if (avg >= 7.0) roast = "It exists.";
         else if (avg >= 6.5) roast = "Regret is part of the experience.";
         else if (avg >= 6.0) roast = "We should apologise to ourselves";
         else if (avg >= 5.5) roast = "Why God Why?";
-        else if (avg >= 5.0) roast = "This was almost impressive in a bad way.";
         else roast = "Self-harm";
 
         html += `
@@ -287,41 +269,31 @@ fetch(API_URL + "?sheet=" + encodeURIComponent("Movie Scoreboard"))
 
     const rows = data.rows || [];
 
-    const processed = (function(rows) {
+    const map = {};
 
-        const NAME = 1;
-        const AVG = 24;
+    for (const r of rows.slice(1)) {
 
-        const map = {};
+        const name = r[0];
+        const avg = parseFloat(r[r.length - 2]);
 
-        for (let i = 1; i < rows.length; i++) {
+        if (!name || isNaN(avg)) continue;
 
-            const r = rows[i];
+        if (!map[name]) map[name] = { total: 0, count: 0 };
 
-            const name = r[NAME];
-            const score = parseFloat(r[AVG]);
+        map[name].total += avg;
+        map[name].count++;
+    }
 
-            if (!name || isNaN(score)) continue;
-
-            if (!map[name]) {
-                map[name] = { total: 0, count: 0 };
-            }
-
-            map[name].total += score;
-            map[name].count += 1;
-        }
-
-        return Object.entries(map).map(([name, obj]) => ({
+    const processed = Object.entries(map)
+        .map(([name, v]) => ({
             name,
-            avg: obj.total / obj.count
-        }));
-
-    })(rows).sort((a, b) => a.avg - b.avg);
+            avg: v.total / v.count
+        }))
+        .sort((a, b) => a.avg - b.avg);
 
     let html = "";
 
     processed.forEach(r => {
-
         html += `
         <div class="card">
             <strong>${r.name}</strong>
